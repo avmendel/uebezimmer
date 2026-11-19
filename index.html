@@ -317,7 +317,7 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
         <div class="row"><label class="small">Zugangsschlüssel <input type="password" id="ghToken" placeholder="github_pat_…" size="30" autocomplete="off" autocapitalize="off" spellcheck="false"></label><button class="btn primary" id="ghSave" type="button">Verbinden</button></div>
         <p class="small muted" id="syncInfo2"></p>
       </div>
-      <div class="row" id="syncOn" hidden><button class="btn" id="syncNow" type="button">Jetzt abgleichen</button><button class="btn" id="qrBtn" type="button">Weiteres Gerät verbinden</button><button class="linkbtn" id="ghForget" type="button">Schlüssel auf diesem Gerät löschen</button></div>
+      <div class="row" id="syncOn" hidden><button class="btn" id="syncNow" type="button">Jetzt abgleichen</button><button class="btn" id="qrBtn" type="button">Weiteres Gerät verbinden</button><button class="btn" id="ghCopy" type="button">Schlüssel kopieren</button><button class="linkbtn" id="ghForget" type="button">Schlüssel auf diesem Gerät löschen</button></div>
       <div id="qrBox" hidden></div>
       <div class="row small"><span>Alten Stand aus dem Claude-Übezimmer übernehmen:</span><input type="file" id="impFile" accept=".json,application/json"><span class="muted" id="impInfo"></span></div>
     </details>
@@ -4405,6 +4405,7 @@ $("#ghSave").onclick=async()=>{const tok=$("#ghToken").value.trim();if(!/^(githu
   catch(e){$("#syncInfo2").textContent="Keine Verbindung zu GitHub.";return}
   $("#ghToken").value="";$("#syncInfo2").textContent="";syncUi();await Store.sync();location.reload()};
 $("#syncNow").onclick=()=>Store.sync();
+$("#ghCopy").onclick=async()=>{const c=GH.cfg();if(!c)return;try{await navigator.clipboard.writeText(c.token);toast("Kopiert. Auf dem anderen Apple-Gerät unter Abgleich einfügen")}catch(e){toast("Kopieren ging nicht")}};
 $("#ghForget").onclick=()=>{if(!confirmBtn($("#ghForget")))return;LS.set("gh",null);syncUi()};
 function confirmBtn(b){if(b.dataset.sure)return true;b.dataset.sure="1";const t=b.textContent;b.textContent="Wirklich?";setTimeout(()=>{b.textContent=t;delete b.dataset.sure},3000);return false}
 $("#qrBtn").onclick=()=>{const box=$("#qrBox");if(!box.hidden){box.hidden=true;return}const c=GH.cfg();if(!c)return;
