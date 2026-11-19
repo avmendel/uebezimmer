@@ -4127,7 +4127,7 @@ function curDay(){if(DAY&&DAY.date!==today())DAY=null;return DAY}
 function newDay(){return {date:today(),totalMin:S.dur,planTitle:PLAN.title||"",i:0,finished:false,qualified:false,bonusXp:0,updatedAt:Date.now(),log:[],
   blocks:todayBlocks(S.dur,true).map(b=>({type:b.type,title:b.title,text:b.text||"",bpm:b.bpm||null,metronome:b.metronome===undefined?null:!!b.metronome,ms:b.min*60000,leftMs:b.min*60000,attempts:0,correct:0,timeSum:0,timeN:0,levelStart:S.level[b.type]||null,levelEnd:S.level[b.type]||null,recordingIds:[],done:false,skipped:false,repair:false}))}}
 const practicedMs=d=>(d.blocks||[]).reduce((a,b)=>a+Math.max(0,b.ms-Math.max(0,b.leftMs)),0);
-const goalMs=d=>Math.min(10*60000,(d?d.totalMin:S.dur)*60000);
+const goalMs=d=>Math.min(10*60000,(d?d.totalMin:S.dur)*60000),qualMs=()=>60000;
 function persistLocal(){if(DAY){DAY.updatedAt=Date.now();LS.set("day",DAY)}}
 let dayTimer=null;
 function persistDay(now){persistLocal();clearTimeout(dayTimer);const go=()=>{if(!DAY)return;const copy=JSON.parse(JSON.stringify(DAY));const i=DAYS.findIndex(x=>x.date===copy.date);if(i>=0)DAYS[i]=copy;else DAYS.push(copy);return Store.put("days",copy.date,copy)};if(now)return go();dayTimer=setTimeout(go,1500)}
@@ -4135,8 +4135,9 @@ function dlog(kind){if(!DAY)return;DAY.log=DAY.log||[];DAY.log.push({at:new Date
 async function freshDay(){const lsDay=LS.get("day",null),dbDay=Store.db?await Store.getDoc("days/"+today()):null;const c=[DAY,dbDay,lsDay].filter(x=>x&&x.date===today()&&Array.isArray(x.blocks));c.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));DAY=c[0]||null}
 const nextIdx=d=>d.blocks.findIndex(b=>!b.done&&(hasPiano||PHONE_TYPES.includes(b.type)));
 const inPause=ds=>(S.pauses||[]).some(p=>ds>=p.from&&ds<=p.to);
-function qualifiedDates(){const s=new Set(DAYS.filter(d=>d.qualified||d.finished||practicedMs(d)>=goalMs(d)).map(d=>d.date));if(DAY&&DAY.qualified)s.add(DAY.date);return s}
-function applyFreezes(){const q=qualifiedDates();if(!q.size)return null;const last=[...q].sort().pop(),miss=[];
+function qualifiedDates(){const s=new Set(DAYS.filter(d=>d.qualified||d.finished||practicedMs(d)>=qualMs()).map(d=>d.date));if(DAY&&DAY.qualified)s.add(DAY.date);return s}
+function refundFreezes(){const q=qualifiedDates(),back=(S.frozen||[]).filter(d=>q.has(d));if(!back.length)return;S.frozen=S.frozen.filter(d=>!q.has(d));S.freezes=Math.min(2,(S.freezes||0)+back.length);saveSettings()}
+function applyFreezes(){refundFreezes();const q=qualifiedDates();if(!q.size)return null;const last=[...q].sort().pop(),miss=[];
   for(let d=addDays(last,1);d<today();d=addDays(d,1))if(!q.has(d)&&!inPause(d)&&!S.frozen.includes(d)&&!S.repaired.includes(d))miss.push(d);
   let used=0;while(miss.length&&S.freezes>0){S.frozen.push(miss.shift());S.freezes--;used++}
   if(used){toast(used===1?"Ein Aussetzer hat deine Serie gerettet":used+" Aussetzer haben deine Serie gerettet");saveSettings()}
@@ -4144,7 +4145,7 @@ function applyFreezes(){const q=qualifiedDates();if(!q.size)return null;const la
 function streak(){const q=qualifiedDates();let n=0,d=today(),g=0;if(!q.has(d))d=addDays(d,-1);
   while(g++<800){if(q.has(d))n++;else if(!(S.frozen.includes(d)||S.repaired.includes(d)||inPause(d)))break;d=addDays(d,-1)}return n}
 function checkGoal(){const d=curDay();if(!d)return;
-  if(!d.qualified&&practicedMs(d)>=goalMs(d)){d.qualified=true;S.qualCount=(S.qualCount||0)+1;bonus(20);let msg="Tagesziel erreicht";
+  if(!d.qualified&&practicedMs(d)>=qualMs()){d.qualified=true;S.qualCount=(S.qualCount||0)+1;bonus(20);let msg="Übetag zählt";
     if(S.qualCount%5===0&&S.freezes<2){S.freezes++;msg+=". Neuer Aussetzer verdient"}
     const st=streak();if(st>(S.best.streak||0))S.best.streak=st;toast(msg);say(msg);burst(80);chime();saveSettings();persistDay(true)}
   if(d.qualified&&repairDate&&d.blocks.some(b=>b.repair&&b.done)){S.repaired.push(repairDate);repairDate=null;toast("Serie repariert");burst(60);saveSettings();if(active==="home")renderHome()}}
@@ -4349,7 +4350,7 @@ async function importSync(p){
       if(DAY.blocks.every(b=>b.done))DAY.finished=true;await persistDay(true)}
     else{const ex=DAYS.find(x=>x.date===d.date)||await Store.getDoc("days/"+d.date);let nd;
       if(!ex)nd=JSON.parse(JSON.stringify(d));else{nd=JSON.parse(JSON.stringify(ex));if(!mergeBlocks(nd,d))continue}
-      if(nd.blocks.every(b=>b.done))nd.finished=true;if(practicedMs(nd)>=goalMs(nd))nd.qualified=true;
+      if(nd.blocks.every(b=>b.done))nd.finished=true;if(practicedMs(nd)>=qualMs())nd.qualified=true;
       nd.log=(nd.log||[]).concat([{at:new Date().toISOString(),kind:"mac-abgleich",block:nd.i||0,device:"klavier"}]);nd.updatedAt=Date.now();
       await Store.put("days",d.date,nd);const i=DAYS.findIndex(x=>x.date===d.date);if(i>=0)DAYS[i]=nd;else DAYS.push(nd);past++}}
   for(const st of (p.stats||[])){const o=Object.assign({},st);delete o.id;o.device="mac";await Store.put("stats",st.id+"_mac",o)}
