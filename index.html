@@ -2851,8 +2851,9 @@ function saveSettings(){clearTimeout(settingsTimer);settingsTimer=setTimeout(()=
 
 /* ---------- Speicher: lokal (IndexedDB) + automatischer Abgleich mit GitHub ---------- */
 const IDB={db:null,
-  open(){return new Promise(res=>{try{const r=indexedDB.open("uez-store",1);r.onupgradeneeded=()=>{r.result.createObjectStore("docs");r.result.createObjectStore("meta")};r.onsuccess=()=>{this.db=r.result;res(true)};r.onerror=()=>res(false)}catch(e){res(false)}})},
+  open(){return new Promise(res=>{try{const r=indexedDB.open("uez-store",2);r.onupgradeneeded=()=>{const d=r.result;["docs","meta","files"].forEach(n=>{if(!d.objectStoreNames.contains(n))d.createObjectStore(n)})};r.onsuccess=()=>{this.db=r.result;res(true)};r.onerror=()=>res(false)}catch(e){res(false)}})},
   all(st){return new Promise(res=>{if(!this.db)return res([]);const out=[];try{const q=this.db.transaction(st).objectStore(st).openCursor();q.onsuccess=()=>{const c=q.result;if(c){out.push([c.key,c.value]);c.continue()}else res(out)};q.onerror=()=>res(out)}catch(e){res(out)}})},
+  get(st,k){return new Promise(res=>{if(!this.db)return res(null);try{const q=this.db.transaction(st).objectStore(st).get(k);q.onsuccess=()=>res(q.result||null);q.onerror=()=>res(null)}catch(e){res(null)}})},
   put(st,k,v){if(!this.db)return;try{this.db.transaction(st,"readwrite").objectStore(st).put(v,k)}catch(e){}},
   del(st,k){if(!this.db)return;try{this.db.transaction(st,"readwrite").objectStore(st).delete(k)}catch(e){}}
 };
@@ -3560,6 +3561,47 @@ const Sight={timed:true,running:false,ex:null,played:[],raf:0,endT:null,auto:fal
     this.ex=Object.assign({},ex);}
 };
 
+/* ---------- Technik: Hanon ---------- */
+const HANON_PARTS=["Teil 1: Nr. 1–20, Fingerunabhängigkeit","Teil 2: Nr. 21–43, Daumenuntersatz, Tonleitern, Arpeggien","Teil 3: Nr. 44–60, Virtuosenübungen"];
+const hanonPart=n=>n<=20?1:n<=43?2:3;
+const hanonTarget=n=>n<=43?80:72;
+function hanonInit(){if(!S.hanon||typeof S.hanon.cur!=="number")S.hanon={cur:1,bpm:{},done:{},rev:0};return S.hanon}
+const Hanon={timed:true,running:false,buf:[],okRun:0,failRun:0,good:0,which:null,last:0,
+  H(){return hanonInit()},
+  review(){const d=Object.keys(this.H().done).map(Number).filter(n=>n!==this.H().cur);if(!d.length)return null;return d.sort((a,b)=>(this.H().done[a]||"").localeCompare(this.H().done[b]||""))[0]},
+  num(){return this.which||this.H().cur},
+  bpm(){const n=this.num(),H=this.H();return this.which&&this.which!==H.cur?hanonTarget(n):(H.bpm[n]||Math.max(56,hanonTarget(n)-20))},
+  mount(el){const H=this.H(),n=this.num(),rv=this.review(),isRev=n!==H.cur;
+    el.innerHTML=`<div class="stage"><div class="keyname">Hanon Nr. ${n}${isRev?" · Wiederholung":""}</div>
+    <p class="small">Aus deinem Heft (gemeinfrei, kostenlos bei IMSLP). Beide Hände, Sechzehntel zum Metronom, ohne Pause wiederholen. Locker aus den Fingern, Handgelenk ruhig, nicht drücken. Wird es eng in Hand oder Unterarm: Pause.</p>
+    <div class="stats"><div class="stat"><span class="label">Tempo</span><b id="hBpm">${this.bpm()}</b></div><div class="stat"><span class="label">Ziel</span><b>${hanonTarget(n)}</b></div><div class="stat"><span class="label">Timing ±</span><b id="hTim">–</b></div><div class="stat"><span class="label">Anschlag ±</span><b id="hVel">–</b></div></div>
+    <div class="fb" id="hFb"></div>
+    <p class="small muted">Geschafft: ${Object.keys(H.done).length} von 60 · aktuell Nr. ${H.cur}. Das Tempo steigt, wenn du dreimal hintereinander gleichmäßig spielst. Im Zieltempo gilt die Nummer als geschafft und die nächste kommt.</p></div>
+    <div class="row"><button class="btn primary" id="hGo" type="button">${this.running?"Stoppen":"Starten"}</button>${rv&&!isRev?`<button class="btn" id="hRev" type="button">Wiederholung: Nr. ${rv}</button>`:""}${isRev?`<button class="btn" id="hCur" type="button">Zurück zu Nr. ${H.cur}</button>`:""}</div>`;
+    $("#hGo").onclick=()=>this.running?this.stop():this.start();
+    if($("#hRev"))$("#hRev").onclick=()=>{this.stop();this.which=rv;this.mount(el)};
+    if($("#hCur"))$("#hCur").onclick=()=>{this.stop();this.which=null;this.mount(el)}},
+  start(){this.running=true;this.buf=[];this.okRun=0;this.failRun=0;this.last=0;Metro.start(this.bpm(),true);const b=$("#hGo");if(b)b.textContent="Stoppen"},
+  stop(){this.running=false;Metro.stop();const b=$("#hGo");if(b)b.textContent="Starten"},
+  on(n,v,ts){if(!this.running||ts<Metro.t0p-200)return;
+    if(this.buf.length&&ts-this.buf[this.buf.length-1].ts<45){const x=this.buf[this.buf.length-1];x.v=(x.v*x.k+v)/(x.k+1);x.k++;return}
+    this.buf.push({ts,v,k:1});if(this.buf.length>=32){this.eval(this.buf);this.buf=[]}},
+  eval(b){const sub=Metro.beat*1000/4,ph=b.map(x=>2*Math.PI*mod(x.ts-Metro.t0p,sub)/sub),mp=Math.atan2(ph.reduce((a,x)=>a+Math.sin(x),0),ph.reduce((a,x)=>a+Math.cos(x),0))*sub/(2*Math.PI),dev=b.map(x=>{let r=mod(x.ts-Metro.t0p-mp,sub);if(r>sub/2)r-=sub;return r}),m=dev.reduce((a,x)=>a+x,0)/dev.length;
+    const sd=Math.sqrt(dev.reduce((a,x)=>a+(x-m)*(x-m),0)/dev.length),vm=b.reduce((a,x)=>a+x.v,0)/b.length,vcv=Math.sqrt(b.reduce((a,x)=>a+(x.v-vm)*(x.v-vm),0)/b.length)/vm;
+    const span=(b[b.length-1].ts-b[0].ts)/sub,steady=Math.abs(span-(b.length-1))<=2;
+    const lim=Math.min(32,sub*.28),ok=steady&&sd<lim&&vcv<.16;Stats.add("hanon",ok,Math.round(sd)||1);
+    const set=(id,t)=>{const e=$(id);if(e)e.textContent=t};set("#hTim",Math.round(sd)+" ms");set("#hVel",Math.round(vcv*100)+" %");
+    const fb=$("#hFb");if(fb){fb.className="fb "+(ok?"ok":"no");fb.textContent=ok?"Gleichmäßig":!steady?"Sechzehntel verloren oder Pause gemacht":sd>=lim?"Timing noch ungleichmäßig":"Anschlag noch ungleichmäßig"}
+    if(ok){this.okRun++;this.failRun=0;good()}else{this.failRun++;this.okRun=0}
+    const H=this.H(),n=this.num(),isRev=n!==H.cur;
+    if(this.okRun>=3){this.okRun=0;
+      if(isRev){H.done[n]=today();saveSettings();toast("Nr. "+n+" sitzt noch");say("Sitzt noch.");bonus(10);this.stop();this.which=null;Host.head();Host.mountCur();return}
+      if(this.bpm()>=hanonTarget(n)){H.done[n]=today();H.cur=Math.min(60,n+1);bonus(40);burst(60);toast("Hanon Nr. "+n+" geschafft. Weiter mit Nr. "+H.cur);say("Geschafft. Weiter mit Nummer "+H.cur+".");S.level.hanon=hanonPart(H.cur);this.stop();saveSettings();Host.head();Host.mountCur();return}
+      H.bpm[n]=Math.min(hanonTarget(n),this.bpm()+4);toast("Tempo "+H.bpm[n]);say("Tempo "+H.bpm[n]);Metro.start(H.bpm[n],false);saveSettings()}
+    else if(this.failRun>=3&&!isRev){this.failRun=0;H.bpm[n]=Math.max(48,this.bpm()-4);toast("Etwas langsamer: "+H.bpm[n]);Metro.start(H.bpm[n],false);saveSettings()}
+    S.hist.hanon=(S.hist.hanon||[]).concat([ok?1:0]).slice(-10);Host.head();set("#hBpm",this.bpm())}
+};
+
 /* ---------- Fähigkeiten ---------- */
 /* ---------- Stufen und Namen ---------- */
 const LET="CDEFGAB",LETPC=[0,2,4,5,7,9,11],MAJ=[0,2,4,5,7,9,11];
@@ -3625,9 +3667,10 @@ const SK={
   tech:{name:"Technik",levels:TECH.map(t=>t.d),mod:Tech,title:"Technik mit Metronom",text:"Gleichmäßig vor schnell. Die App misst Timing und Anschlag."},
   names:{name:"Stufen und Namen",levels:NAMES_D,mod:Names,title:"Stufen und Namen",text:"Akkordnamen und Stufen ineinander übersetzen. Erst do bestimmen, dann die Stufe."},
   echo:{name:"Echo",levels:ECHO.map(e=>e.d),mod:Echo,title:"Echo: nachspielen",text:"Die App spielt vor, du spielst im nächsten Takt nach."},
-  sight:{name:"Blattlesen",levels:SIGHT_LV,mod:Sight,title:"Blattlesen",text:"Durchspielen, ohne anzuhalten. Lieber einen Ton auslassen als den Takt verlieren."}
+  sight:{name:"Blattlesen",levels:SIGHT_LV,mod:Sight,title:"Blattlesen",text:"Durchspielen, ohne anzuhalten. Lieber einen Ton auslassen als den Takt verlieren."},
+  hanon:{name:"Hanon",levels:HANON_PARTS,mod:Hanon,title:"Technik: Hanon",text:"Aktuelle Nummer aus dem Heft, Sechzehntel zum Metronom. Gleichmäßig vor schnell."}
 };
-const EAR_IDS=["dofind","dohold","ear","bass","prog","names","chords","rhythm","ap"],PIANO_IDS=["blind","voice","tech","echo","sight"];
+const EAR_IDS=["dofind","dohold","ear","bass","prog","names","chords","rhythm","ap"],PIANO_IDS=["hanon","tech","blind","voice","echo","sight"];
 const PHONE_TYPES=EAR_IDS.concat(["listen","song"]);
 
 /* ---------- Host ---------- */
@@ -3637,7 +3680,7 @@ const Host={cur:null,id:null,
   head(){const id=this.id;if(!id)return;$("#dName").textContent=SK[id].name;$("#dLevel").textContent="Stufe "+lvl(id)+" von "+SK[id].levels.length+": "+SK[id].levels[lvl(id)-1];drawHist(id,$("#dHist"))},
   close(){if(this.cur&&this.cur.stop)this.cur.stop();Metro.stop();stopAll();kbClear("hint");this.cur=null;this.id=null}
 };
-function setLevel(dir){const id=Host.id;if(!id)return;if(id==="ap"){if(dir>0){const nx=AP_ORDER.find(x=>!S.apClasses.includes(x));if(nx!==undefined)S.apClasses.push(nx)}else if(S.apClasses.length>1)S.apClasses.pop();S.level.ap=S.apClasses.length}
+function setLevel(dir){const id=Host.id;if(!id)return;if(id==="hanon"){const H=hanonInit();H.cur=Math.min(60,Math.max(1,H.cur+dir));S.level.hanon=hanonPart(H.cur);Hanon.which=null;saveSettings();Hanon.stop();Host.head();Host.mountCur();return}if(id==="ap"){if(dir>0){const nx=AP_ORDER.find(x=>!S.apClasses.includes(x));if(nx!==undefined)S.apClasses.push(nx)}else if(S.apClasses.length>1)S.apClasses.pop();S.level.ap=S.apClasses.length}
   else S.level[id]=Math.min(SK[id].levels.length,Math.max(1,lvl(id)+dir));S.hist[id]=[];saveSettings();if(Host.cur.stop)Host.cur.stop();Host.head();Host.mountCur()}
 $("#dUp").onclick=()=>setLevel(1);$("#dDown").onclick=()=>setLevel(-1);
 $("#dBack").onclick=()=>{Host.close();showPanel("path")};
@@ -3786,15 +3829,16 @@ const TR_EX={
   shell:{st:"Shells",title:"Shells ohne Bild",piano:true,how:"Jetzt nur der Akkordname. Greif Grundton plus Septime oder Grundton plus Terz. Tipp: Der obere Ton bleibt liegen oder rutscht einen Schritt nach unten."},
   shellT:{st:"Shells",title:"Shells im Takt",piano:true,timed:true,bpm:60,how:"Das Schlagzeug zählt ein. Greif auf jede Eins den Shell und halt ihn den ganzen Takt."},
   shellM:{st:"Shells",title:"Shells aus dem Kopf",piano:true,timed:true,hide:true,bpm:70,how:"Die Akkordnamen sind verdeckt, du siehst nur die Taktnummer. Greif die Shells aus dem Kopf im Takt."},
-  melS:{st:"Melodie",title:"Melodie singen",self:3,how:"Öffne im Hörplayer die Sinatra-Aufnahme, markier diesen Teil als Abschnitt und stell 75 % ein. Sing auf Silben mit (do = G). Drück „Geschafft“, sobald du ihn einmal ohne Aufnahme singen kannst. Dreimal."},
-  melP:{st:"Melodie",title:"Melodie rechts",piano:true,self:3,how:"Spiel die Melodie dieses Teils rechts allein, ohne Begleitung. Das Leadsheet ist erlaubt. Drück „Geschafft“ nach jedem Durchgang ohne Stocken. Dreimal."},
+  melH:{st:"Melodie",title:"Melodie hören und singen",mel:"hear",how:"Phrase für Phrase: Die App spielt dir vier Takte aus deiner Aufnahme in Schleife vor. Erst zuhören, dann auf Silben mitsingen, do = G. „Kann ich singen“, sobald es ohne Aufnahme klappt."},
+  melF:{st:"Melodie",title:"Melodie am Klavier finden",piano:true,mel:"find",how:"Phrase für Phrase: Hör die Schleife und such die Töne rechts am Klavier. Klingt es wie die Aufnahme, nimm die Phrase einmal auf. Das ist ab jetzt deine Fassung, gegen die die App später prüft."},
+  melP:{st:"Melodie",title:"Melodie rechts spielen",piano:true,mel:"play",how:"Spiel deine Fassung rechts allein, alle Phrasen hintereinander. Die App prüft jeden Ton, ein Fehler pro Phrase ist erlaubt. Zweimal sauber."},
   bothR:{st:"Zusammen",title:"Melodie + Grundtöne",piano:true,timed:true,bpm:60,both:true,how:"Rechts die Melodie, links auf jede Eins der Grundton als ganze Note. Die App prüft die linke Hand."},
   bothS:{st:"Zusammen",title:"Melodie + Shells",piano:true,timed:true,bpm:60,both:true,shellCheck:true,how:"Rechts die Melodie, links auf jede Eins der Shell. Die App prüft die linke Hand."}
 };
 ["shellT","shellM"].forEach(k=>TR_EX[k].shellCheck=true);["shellS","shell"].forEach(k=>TR_EX[k].shellCheck=true);
 const TR_SEQ=[].concat(
-  ["form","rn","root","rootT","shellS","shell","shellT","shellM","melS","melP","bothR","bothS"].map(e=>"A:"+e),
-  ["form","rn","root","rootT","shellS","shell","shellT","shellM","melS","melP","bothR","bothS"].map(e=>"BC:"+e),
+  ["melH","form","rn","root","rootT","melF","melP","shellS","shell","shellT","shellM","bothR","bothS"].map(e=>"A:"+e),
+  ["melH","form","rn","root","rootT","melF","melP","shellS","shell","shellT","shellM","bothR","bothS"].map(e=>"BC:"+e),
   ["form","rootT","shellM","bothR","bothS"].map(e=>"G:"+e));
 function mergeTrainer(a,b){const o=JSON.parse(JSON.stringify(a||{}));Object.keys(b||{}).forEach(sid=>{const x=o[sid]=o[sid]||{done:{},runs:{},bpm:{}},y=b[sid]||{};
   ["done","runs","bpm"].forEach(f=>{x[f]=x[f]||{}});
@@ -3822,12 +3866,13 @@ const Trainer={id:"autumn",ex:null,st:null,iv:null,saved:null,
     if(!this.ex){$("#trHead").textContent="Alles geschafft";$("#trHow").textContent="Du hast alle Schritte für "+SONGS[this.id].title+" erledigt. Spiel den Song jetzt einmal ganz zum Track „Bass + Drums“ und nimm ihn auf.";$("#trStage").innerHTML="";$("#trCtl").innerHTML="";return}
     const K=this.key(this.ex);$("#trHead").textContent=K.scope.name+" · "+K.ex.title;$("#trStep").textContent=K.ex.st+" · Schritt "+(TR_SEQ.indexOf(this.ex)+1)+" von "+TR_SEQ.length+(P.done[this.ex]?" · schon geschafft":"");
     $("#trHow").textContent=K.ex.how;
+    if(K.ex.mel){if(Mel.ex!==this.ex){Mel.ex=this.ex;Mel.enter(K)}Mel.render();return}
     const need=K.ex.self||2,runs=P.runs[this.ex]||0;
     let warn="";if(K.ex.piano&&!this.piano())warn=`<p class="small fb no">Das geht nur am Klavier, am Mac in Chrome.${this.pick()&&!this.key(this.pick()).ex.piano?" Am iPhone ist gerade „"+esc(this.key(this.pick()).ex.title)+"“ dran.":""}</p>`;
     const bpm=this.bpmOf(this.ex);
     $("#trCtl").innerHTML=warn+`<div class="row"><button class="btn primary" id="trGo" type="button">${K.ex.self?"Geschafft":this.st?"Stoppen":"Starten"}</button>`+
       (K.ex.timed?`<span class="small">Tempo <button class="linkbtn" id="trSlow" type="button">−</button> <b class="mono" id="trBpm">${bpm}</b> <button class="linkbtn" id="trFast" type="button">+</button></span>`:"")+
-      (K.ex.self&&K.sc!=="G"&&K.ex===TR_EX.melS?`<button class="btn" id="trPlayer" type="button">Zum Hörplayer</button>`:"")+
+      
       `<span class="small muted" id="trRuns">${K.ex.self?runs+" von "+need:"Saubere Durchgänge: "+runs+" von "+need}</span>`+
       (P.done[this.ex]?"":`<button class="linkbtn small" id="trSkip" type="button">Kann ich schon</button>`)+`</div>`;
     $("#trGo").onclick=()=>{ac();lastInput=performance.now();if(K.ex.self)this.selfPass();else if(this.st)this.stop();else this.start()};
@@ -3841,7 +3886,7 @@ const Trainer={id:"autumn",ex:null,st:null,iv:null,saved:null,
   passed(){const P=this.P,k=this.ex;P.done[k]=true;bonus(15);burst(50);const K=this.key(k);toast("Geschafft: "+K.ex.title);say("Geschafft. "+K.ex.title+".");saveSettings();this.stop();
     const nx=this.pick();this.ex=nx;setTimeout(()=>{this.render();if(nx)say("Als Nächstes: "+this.key(nx).ex.title+".")},1200);this.render()},
   /* Anzeige */
-  drawStage(){const el=$("#trStage");if(!el)return;const st=this.st;const K=this.ex?this.key(this.ex):null;
+  drawStage(){const el=$("#trStage");if(!el)return;const st=this.st;const K=this.ex?this.key(this.ex):null;if(K&&K.ex.mel)return;
     if(!K){el.innerHTML="";return}
     const segs=this.scopeSegs(K.sc);
     const dots=`<div class="trdots">${segs.map((s,i)=>{const r=st&&st.res?st.res[i]:null;return `<span class="${r===true?"ok":r===false?"no":""}${st&&st.i===i?" cur":""}" title="Takt ${s.bar+1}"></span>`}).join("")}</div>`;
@@ -3889,7 +3934,7 @@ const Trainer={id:"autumn",ex:null,st:null,iv:null,saved:null,
     const want=K.ex.pic?[s.kind==="7"?s.i7:s.i3]:[s.i7,s.i3];const hasG=want.some(x=>rel.has(x));
     if(both)return hasG?true:null;const extra=[...rel].some(x=>x!==0&&x!==s.i3&&x!==s.i7);
     if(hasG&&!extra)return true;return lhN.length>=2?false:null},
-  note(n,on){const st=this.st;if(!st||st.fin)return;lastInput=performance.now();const K=this.key(this.ex);
+  note(n,on){const st=this.st;if(st&&st.mel)return Mel.note(n,on);if(!st||st.fin)return;lastInput=performance.now();const K=this.key(this.ex);
     if(st.timed)return this.tickTimed();
     if(K.e==="form"||K.e==="rn")return;
     const s=this.scopeSegs(K.sc)[st.i];if(!s)return;if(on)st.fresh=true;if(!st.fresh)return;
@@ -3913,7 +3958,7 @@ const Trainer={id:"autumn",ex:null,st:null,iv:null,saved:null,
     const r=$("#trRuns");if(r)r.textContent="Saubere Durchgänge: "+(P.runs[this.ex]||0)+" von "+need;
     if(clean&&P.runs[this.ex]>=need){setTimeout(()=>this.passed(),300);return}
     st.lap++;st.missLap=0;toast(clean?"Sauberer Durchgang":"Noch mal, ein verpasster Takt ist erlaubt");setTimeout(()=>{if(this.st===st)st.res=st.res.map(()=>null)},350)},
-  stop(){const st=this.st;this.st=null;clearInterval(this.iv);kbClear("hint");if(this.forceHide){this.forceHide=false;Song.form()}if(st){clearTimeout(st.wt);if(st.timed){Song.onSched=null;if(Song.playing)Song.stop();const s=this.saved;if(s){$("#sgSrc").value=s.src;$("#sgBass").checked=s.bass;$("#sgComp").checked=s.comp;$("#sgDrums").checked=s.drums;$("#sgWalk").checked=s.walk;$("#sgBpm").value=s.bpm;$("#sgBpmV").textContent=s.bpm;Song.loop=s.loop;Song.ctl();Song.form()}this.saved=null}}
+  stop(){const st=this.st;this.st=null;if(typeof Mel!=="undefined"){Mel.stopRec(true);Mel.run=null}clearInterval(this.iv);kbClear("hint");if(this.forceHide){this.forceHide=false;Song.form()}if(st){clearTimeout(st.wt);if(st.timed){Song.onSched=null;if(Song.playing)Song.stop();const s=this.saved;if(s){$("#sgSrc").value=s.src;$("#sgBass").checked=s.bass;$("#sgComp").checked=s.comp;$("#sgDrums").checked=s.drums;$("#sgWalk").checked=s.walk;$("#sgBpm").value=s.bpm;$("#sgBpmV").textContent=s.bpm;Song.loop=s.loop;Song.ctl();Song.form()}this.saved=null}}
     const b=$("#trGo");if(b&&this.ex&&!this.key(this.ex).ex.self)b.textContent="Starten";this.drawStage()}
 };
 
@@ -4040,15 +4085,23 @@ if(LOCAL&&window.showDirectoryPicker){$("#plFolder").hidden=false;$("#plFolder")
 /* ---------- Übeplan ---------- */
 const TYPE_PANEL=t=>SK[t]?"drill":t==="rep"?"rep":(t==="song"||t==="licks")?"song":t==="listen"?"listen":(t==="rec"||t==="free")?"rec":null;
 function blk(type,share,extra){const base=SK[type]?{type,title:SK[type].title,text:SK[type].text}:type==="rec"?{type,title:"Freies Spiel: Blues in F",text:"Links Shells (F7, B♭7, C7), rechts Bluestonleiter in F: F, A♭, B♭, B, C, E♭. Kurze Phrasen, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true}:type==="listen"?{type,title:"Hörauftrag mit echter Musik",text:""}:type==="rep"?{type,title:"Repertoire",text:"Die fälligen Stücke durchspielen, ohne anzuhalten, und danach bewerten."}:type==="song"?{type,title:"Song: Autumn Leaves",text:"Aufgabe der Woche aus der Lektion."}:type==="licks"?{type,title:"Blues-Phrasen",text:"Nächster Schritt im Reiter Song, Karte Blues-Phrasen."}:{type,title:type,text:""};return Object.assign({},base,{share},extra||{})}
+/* ---------- Übeprogramm 30 Minuten (v3) ---------- */
+const FREE_AL={title:"Freies Spiel über Autumn Leaves",text:"Links die Grundtöne oder Shells der Form, rechts Bruchstücke der Melodie und eigene Varianten davon. Nicht anhalten, falsche Töne sind erlaubt. Wird aufgenommen.",bpm:72,metronome:true};
+const FREE_BL={title:"Freies Spiel: Blues in F",text:"Links F7, B♭7, C7 als Shells, rechts kurze Phrasen aus der Bluestonleiter F, A♭, B♭, B, C, E♭. Fragen und Antworten, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true};
+const PLAN_V3={v:3,dur:30,title:"Übeprogramm: 30 Minuten",
+  note:"Jeden Klaviertag: Hanon, Autumn Leaves und Repertoire. Abwechselnd dazu freies Spiel, Blattlesen und Tonleitern. Die Hörübungen gehen auch am iPhone. Autumn Leaves beginnt jetzt mit der Melodie nach Gehör, der Song-Trainer führt dich Schritt für Schritt.",
+  rotation:[
+    [blk("hanon",.15),blk("dofind",.08),blk("song",.3),blk("rec",.15,FREE_AL),blk("rep",.22),blk("names",.1)],
+    [blk("hanon",.15),blk("ear",.1),blk("song",.3),blk("rep",.2),blk("sight",.15),blk("bass",.1)],
+    [blk("hanon",.12),blk("tech",.1),blk("dofind",.08),blk("song",.25),blk("rec",.15,FREE_BL),blk("rep",.2),blk("prog",.1)]]};
+function ensurePlan(){if((+PLAN.v||0)>=3)return false;PLAN=JSON.parse(JSON.stringify(PLAN_V3));S.dur=PLAN.dur;S.qKey=null;S.qPos=0;saveSettings();return true}
+
 const DEFAULT_ROTATION=[
   [blk("dofind",.15),blk("names",.1),blk("song",.35),blk("ear",.1),blk("blind",.05),blk("rec",.15,{title:"Freies Spiel",text:"Frei über Blues in F oder die Form von Autumn Leaves. Wird aufgenommen, nicht bewertet."}),blk("bass",.1)],
   [blk("dofind",.15),blk("prog",.1),blk("song",.35),blk("echo",.15),blk("voice",.1),blk("blind",.05),blk("dohold",.1)],
   [blk("dofind",.15),blk("names",.1),blk("song",.35),blk("tech",.1),blk("rec",.15,{title:"Freies Spiel",text:"Frei über Blues in F oder die Form von Autumn Leaves. Wird aufgenommen, nicht bewertet."}),blk("blind",.05),blk("ear",.1)]];
 let PLAN={"title": "Woche 2: Autumn Leaves mit dem Song-Trainer", "note": "Neu im Reiter Song: der Song-Trainer. Er führt dich in kleinen Schritten durch Autumn Leaves, erst die Form im Kopf, dann Grundtöne, Shells, Melodie und beides zusammen. Am Mac prüft die App, was du greifst, und schaltet den nächsten Schritt selbst frei. Abhaken musst du nichts mehr, ein Fehler pro Durchgang ist erlaubt.", "rotation": [[{"share": 0.15, "text": "Keine Kadenz. do summen, dann sofort tippen. Tempo zählt mehr als Treffer.", "title": "do finden", "type": "dofind"}, {"share": 0.4, "text": "Song-Trainer im Reiter Song: der nächste Schritt.", "title": "Song: Autumn Leaves", "type": "song"}, {"share": 0.1, "text": "Nur die tiefste Stimme. Als Stufe singen, dann tippen.", "title": "Bass hören", "type": "bass"}, {"share": 0.1, "text": "Erst das do, dann die Stufe, dann der Name.", "title": "Stufen und Namen", "type": "names"}, {"bpm": 70, "metronome": true, "share": 0.15, "text": "Links nur die Grundtöne des A-Teils auf Zählzeit 1: C, F, B♭, E♭, A, D, G. Rechts zwei, drei Töne aus g-Moll. Zwei Takte spielen, zwei Takte Pause.", "title": "Freies Spiel", "type": "rec"}, {"share": 0.1, "text": "Erst singen, dann tippen.", "title": "Melodien hören", "type": "ear"}], [{"share": 0.15, "text": "Keine Kadenz. do summen, dann sofort tippen. Tempo zählt mehr als Treffer.", "title": "do finden", "type": "dofind"}, {"share": 0.1, "text": "Erst das do, dann die Stufe, dann der Name.", "title": "Stufen und Namen", "type": "names"}, {"share": 0.4, "text": "Song-Trainer im Reiter Song: der nächste Schritt.", "title": "Song: Autumn Leaves", "type": "song"}, {"share": 0.15, "text": "Die Griffe aus Autumn Leaves, langsam und ohne Fehlgriff. Grundton plus Septime oder plus Terz.", "title": "Voicings greifen", "type": "voice"}, {"share": 0.1, "text": "Nur die tiefste Stimme. Als Stufe singen, dann tippen.", "title": "Bass hören", "type": "bass"}, {"share": 0.1, "text": "do aus der Kadenz durch die Ablenkung tragen.", "title": "do halten", "type": "dohold"}], [{"share": 0.15, "text": "Keine Kadenz. do summen, dann sofort tippen. Tempo zählt mehr als Treffer.", "title": "do finden", "type": "dofind"}, {"share": 0.1, "text": "Erst den Bass, dann die Farbe.", "title": "Akkordfolgen erkennen", "type": "prog"}, {"share": 0.4, "text": "Song-Trainer im Reiter Song: der nächste Schritt.", "title": "Song: Autumn Leaves", "type": "song"}, {"bpm": 70, "metronome": true, "share": 0.15, "text": "Links die Grundtöne der ganzen Form, ein Ton pro Takt. Rechts höchstens ein Ton pro Takt. Ziel: ohne Anhalten bis zum Ende.", "title": "Freies Spiel", "type": "rec"}, {"share": 0.1, "text": "Nur die tiefste Stimme. Als Stufe singen, dann tippen.", "title": "Bass hören", "type": "bass"}, {"share": 0.1, "text": "Erst singen, dann tippen.", "title": "Melodien hören", "type": "ear"}]]};
 const validBlocks=a=>Array.isArray(a)&&a.length>0&&a.every(b=>b&&TYPE_PANEL(b.type)&&b.title);
-function ensureRepPlan(){if(PLAN.noRep)return false;const R=planRotation();if(R.some(d=>d.some(b=>b.type==="rep")))return false;
-  PLAN=Object.assign({},PLAN,{rotation:R.map(day=>day.map(b=>Object.assign({},b,{share:+(((+b.share)||1/day.length)*.65).toFixed(3)})).concat([blk("rep",.25),blk("sight",.1)])),
-    note:"Neu: Repertoire und Blattlesen gehören jetzt zu jedem Übetag am Klavier. Deine Stücke stehen im Reiter Stücke."+(PLAN.note?" "+PLAN.note:"")});delete PLAN.blocks;return true}
 function planRotation(){if(Array.isArray(PLAN.rotation)&&PLAN.rotation.length&&PLAN.rotation.every(validBlocks))return PLAN.rotation;if(validBlocks(PLAN.blocks))return [PLAN.blocks];return DEFAULT_ROTATION}
 const dayIndex=()=>Math.floor(new Date(today()+"T12:00:00").getTime()/864e5);
 function minutesFor(shares,total){const m=shares.map(s=>Math.max(1,Math.round(s*total)));let diff=total-m.reduce((a,b)=>a+b,0),i=0;while(diff!==0&&i<200){const j=i%m.length;if(diff>0){m[j]++;diff--}else if(m[j]>1){m[j]--;diff++}i++}return m}
@@ -4116,6 +4169,7 @@ const Runner={on:false,last:0,tick:null,lock:null,seg:null,switching:false,start
     if(k<0){if(DAY.blocks.every(b=>b.done))return this.finish();return this.interrupt("Die Hörübungen für heute sind erledigt. Der Rest geht am Klavier.")}
     DAY.i=k;const b=DAY.blocks[k],panel=TYPE_PANEL(b.type);lastInput=performance.now();
     this.seg={b,snap:SK[b.type]?Stats.snap(b.type):null};
+    if(b.type==="hanon"){const H=hanonInit();Hanon.which=null;H.rev=(H.rev||0)+1;if(H.rev%3===0&&Hanon.review())Hanon.which=Hanon.review()}
     if(panel==="drill")Host.open(b.type,false);else{Host.close();showPanel(panel);if(panel==="listen")Listen.show(b);if(panel==="song"){Song.show();if(b.type==="licks")setTimeout(()=>{const c=$("#lkCard");if(c)c.scrollIntoView({behavior:"smooth",block:"start"})},400)}}
     if(panel==="drill")$("#dFoot").hidden=true;if(panel==="rep")Rep.begin();
     chime();$("#rIdx").textContent="Übung "+(k+1)+" von "+DAY.blocks.length;$("#rTitle").textContent=b.title;$("#rText").textContent=(b.type==="song"&&Trainer.nextText())||(b.type==="licks"&&Licks.nextText())||b.text||"";
@@ -4194,7 +4248,7 @@ function renderHome(){
 }
 function renderPath(){
   const card=id=>{const s=SK[id],L=lvl(id),max=s.levels.length,h=(S.hist[id]||[]).slice(-8).reduce((a,b)=>a+b,0);
-    return `<button class="skill" type="button" data-s="${id}"><span class="nm"><span>${s.name}</span><span class="lv">${L}/${max}</span></span><span class="pips">${[...Array(max)].map((_,i)=>`<i class="${i<L?"f":""}"></i>`).join("")}</span><span class="ds">${esc(s.levels[L-1])}</span><span class="small muted">${L>=max?"Höchste Stufe":id==="ap"?"Neue Tonklasse bei 18 von 20 je Ton":id==="tech"?"Steigt mit dem Tempo":"Nächste Stufe: 7 von 8 richtig ("+h+" bisher)"}</span></button>`};
+    return `<button class="skill" type="button" data-s="${id}"><span class="nm"><span>${s.name}</span><span class="lv">${L}/${max}</span></span><span class="pips">${[...Array(max)].map((_,i)=>`<i class="${i<L?"f":""}"></i>`).join("")}</span><span class="ds">${esc(s.levels[L-1])}</span><span class="small muted">${L>=max?"Höchste Stufe":id==="ap"?"Neue Tonklasse bei 18 von 20 je Ton":id==="tech"?"Steigt mit dem Tempo":id==="hanon"?"Aktuell Nr. "+hanonInit().cur+" · "+Object.keys(hanonInit().done).length+" von 60 geschafft":"Nächste Stufe: 7 von 8 richtig ("+h+" bisher)"}</span></button>`};
   const onlyEar=!LOCAL&&!hasPiano;$("#pathPianoLbl").textContent=onlyEar?"Am Klavier (am Mac in Chrome)":"Am Klavier";$("#pathPiano").hidden=onlyEar;
   $("#pathEar").innerHTML=EAR_IDS.filter(id=>id!=="ap"||S.apOn).map(card).join("");$("#pathPiano").innerHTML=PIANO_IDS.map(card).join("");
   document.querySelectorAll("#p-path .skill").forEach(b=>b.onclick=()=>{ac();Host.open(b.dataset.s,false)})
@@ -4422,6 +4476,81 @@ const Rep={sessRated:0,sessClean:0,doneToday:new Set(),
 };
 $("#repAdd").onclick=()=>{const v=$("#repNew").value.trim();if(!v)return;Rep.pieces().push({id:"p"+Date.now(),title:v,stage:$("#repNewStage").value,iv:2,due:today(),ok:0,last:null,log:[]});$("#repNew").value="";saveSettings();Rep.render()};
 
+/* ---------- Song-Trainer: Melodie nach Gehör ---------- */
+const MEL_PH={A:[[0,3],[4,7]],BC:[[16,19],[20,23],[24,27],[28,31]]};
+const phKey=p=>(p[0]+1)+"-"+(p[1]+1),phName=p=>"Melodie Takt "+(p[0]+1)+"–"+(p[1]+1);
+const Mel={i:0,rec:null,recT:null,run:null,
+  P(){const P=Trainer.P;P.mel=P.mel||{};P.sung=P.sung||{};return P},
+  phs(K){return MEL_PH[K.sc]||[]},
+  doneOf(K,p){const P=this.P(),k=phKey(p);return K.ex.mel==="hear"?!!P.sung[k]:K.ex.mel==="find"?!!(P.mel[k]&&P.mel[k].n.length):false},
+  sec(p){return Player.secs.find(s=>s.name===phName(p))||null},
+  async file(){if(Player.cur)return Player.cur;const f=await IDB.get("files","mel:"+Trainer.id);if(f){try{Player.add([f]);await Player.open(f)}catch(e){}}return Player.cur},
+  async pickFile(f){if(!f)return;IDB.put("files","mel:"+Trainer.id,f);Player.add([f]);await Player.open(f);this.render()},
+  enter(K){const phs=this.phs(K);const k=phs.findIndex(p=>!this.doneOf(K,p));this.i=k<0?0:k;this.run=null;this.stopRec(true)},
+  stop(){this.stopRec(true);this.run=null;if(Player.audio&&!Player.audio.paused)Player.pause()},
+  async render(){const K=Trainer.key(Trainer.ex),st=$("#trStage"),ctl=$("#trCtl");if(!st||!ctl)return;const f=await this.file();
+    const phs=this.phs(K),P=this.P(),p=phs[this.i];
+    const chips='<div class="row">'+phs.map((q,j)=>'<button class="btn'+(j===this.i?' primary':'')+'" data-ph="'+j+'" type="button">'+(this.doneOf(K,q)?"✓ ":"")+"Takt "+(q[0]+1)+"–"+(q[1]+1)+'</button>').join("")+'</div>';
+    const chords=p?Trainer.segs().filter(s=>s.bar>=p[0]&&s.bar<=p[1]).map(s=>s.name).join(" · "):"";
+    let body="",btns="";
+    const needFile=K.ex.mel!=="play";
+    if(needFile&&!f){body='<p>Wähl zuerst die Aufnahme, aus der du die Melodie heraushörst. Am besten eine Version, in der die Melodie klar gesungen oder gespielt wird, zum Beispiel Sinatra. Die App merkt sich die Datei auf diesem Gerät.</p>';
+      btns='<label class="btn primary" for="melFile">Aufnahme wählen</label><input type="file" id="melFile" accept="audio/*,.mp3,.m4a,.aac,.wav" hidden>'}
+    else if(K.ex.mel!=="play"&&p&&!this.sec(p)){const a=Player.a;
+      body='<p><b>Phrase markieren, einmalig:</b> Spiel die Aufnahme ab. Tipp „Phrase beginnt“, wenn Takt '+(p[0]+1)+' einsetzt'+(chords?' (Akkorde: '+esc(chords)+')':'')+', und „Phrase endet“ nach vier Takten. Beginnt die Melodie mit Auftakt schon kurz vorher, tipp dort.</p><p class="small muted mono">'+fmt((Player.audio?Player.audio.currentTime:0)*1000)+(a!==null?' · Anfang bei '+fmt(a*1000):'')+'</p>';
+      btns='<button class="btn primary" id="melPlay" type="button">'+(Player.audio&&!Player.audio.paused?"Pause":"Abspielen")+'</button><button class="btn" id="melBack" type="button">−5 s</button><button class="btn" id="melA" type="button">Phrase beginnt</button><button class="btn" id="melB" type="button"'+(a===null?' disabled':'')+'>Phrase endet</button>'}
+    else if(K.ex.mel==="hear"){
+      body='<p>Erst dreimal nur zuhören. Dann auf Silben mitsingen, do = G. Zum Schluss die Schleife anhalten und die Phrase allein singen.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>';
+      btns=this.loopBtns()+'<button class="btn" id="melOk" type="button">Kann ich singen</button>'}
+    else if(K.ex.mel==="find"){const r=P.mel[phKey(p)],recN=this.rec?this.rec.n:null;
+      body='<p>Hör die Schleife und such die Töne rechts am Klavier. Klingt es wie die Aufnahme, drück „Aufnehmen“ und spiel die Phrase einmal.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>'+
+        (recN?'<p class="mono">Aufnahme läuft: '+esc(recN.map(n=>TRN[mod(n,12)]).join(" "))+'</p>':r?'<p class="mono">Deine Fassung: '+esc(r.n.map(n=>TRN[mod(n,12)]).join(" "))+'</p>':'');
+      btns=this.loopBtns()+(this.rec?'<button class="btn primary" id="melStop" type="button">Fertig</button>':'<button class="btn" id="melRec" type="button">'+(r?"Neu aufnehmen":"Aufnehmen")+'</button>')+(r&&!this.rec?'<button class="btn" id="melHearMe" type="button">Meine Fassung anhören</button><button class="btn primary" id="melKeep" type="button">Passt, weiter</button>':'')}
+    else{const miss=phs.filter(q=>!(P.mel[phKey(q)]&&P.mel[phKey(q)].n.length));
+      if(miss.length){body='<p class="fb no">Für Takt '+miss.map(q=>(q[0]+1)+"–"+(q[1]+1)).join(", ")+' fehlt noch deine Fassung. Erst im Schritt „Melodie am Klavier finden“ aufnehmen.</p>'}
+      else{const r=this.run;
+        body=r?'<div class="chord">Takt '+(phs[r.ph][0]+1)+'–'+(phs[r.ph][1]+1)+'</div><p class="mono">Ton '+r.pos+' von '+r.exp.length+'</p><div class="fb '+(r.fbc||"")+'">'+esc(r.fb||"")+'</div>':'<p>Spiel deine Fassung rechts, alle Phrasen hintereinander. Die App prüft jeden Ton.</p>';
+        btns='<button class="btn primary" id="melRun" type="button">'+(r?"Stoppen":"Starten")+'</button>'}}
+    const runs=P.runs[Trainer.ex]||0;
+    st.innerHTML='<div class="stage">'+(K.ex.mel!=="play"?chips:"")+body+'</div>';
+    ctl.innerHTML=(K.ex.piano&&!Trainer.piano()?'<p class="small fb no">Das geht nur am Klavier, am Mac in Chrome.</p>':'')+'<div class="row">'+btns+'</div><div class="row small muted">'+(K.ex.mel==="play"?'Saubere Durchgänge: '+runs+' von 2':phs.filter(q=>this.doneOf(K,q)).length+' von '+phs.length+' Phrasen')+(P.done[Trainer.ex]?'':' <button class="linkbtn small" id="trSkip" type="button">Kann ich schon</button>')+'</div>';
+    st.querySelectorAll("[data-ph]").forEach(b=>b.onclick=()=>{this.stop();this.i=+b.dataset.ph;Player.a=Player.b=null;this.render()});
+    const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=()=>{ac();lastInput=performance.now();fn()}};
+    const fi=$("#melFile");if(fi)fi.onchange=e=>this.pickFile(e.target.files[0]);
+    on("melPlay",()=>{const el=Player.el();if(el.paused)Player.play();else Player.pause();this.tickUi()});
+    on("melBack",()=>{const el=Player.el();el.currentTime=Math.max(0,el.currentTime-5);this.render()});
+    on("melA",()=>{Player.a=Player.el().currentTime;this.render()});
+    on("melB",async()=>{const t=Player.el().currentTime;if(Player.a===null||t<=Player.a+1){toast("Erst den Anfang setzen");return}Player.secs.push({name:phName(p),a:Player.a,b:t});Player.a=Player.b=null;await Player.saveSecs();Player.pause();toast("Phrase markiert");this.render()});
+    on("melLoop",()=>{const s=this.sec(p);if(Player.audio&&!Player.audio.paused){Player.pause()}else Player.playRange(s.a,s.b,true);setTimeout(()=>this.render(),50)});
+    on("melRate",()=>{Player.setRate(Player.el().playbackRate<.9?1:.75);this.render()});
+    on("melRemark",async()=>{Player.secs=Player.secs.filter(s=>s.name!==phName(p));await Player.saveSecs();Player.pause();this.render()});
+    on("melOk",()=>{P.sung[phKey(p)]=true;bonus(5);good();this.next(K)});
+    on("melRec",()=>{if(!Trainer.piano()){toast("Das geht nur am Klavier");return}this.rec={n:[],t:[]};Trainer.st={mel:true};this.render()});
+    on("melStop",()=>this.stopRec(false));
+    on("melHearMe",()=>{const r=P.mel[phKey(p)];if(Player.audio)Player.pause();const t0=ac().currentTime+.1;playSeq(r.n.map((n,j)=>({n,t:t0+(r.t[j]||j*400)/1000,d:.35,v:70})),true)});
+    on("melKeep",()=>{bonus(10);good();this.next(K)});
+    on("melRun",()=>{if(this.run){this.run=null;Trainer.st=null;this.render();return}this.startRun(K)});
+    on("trSkip",()=>{this.stop();P.done[Trainer.ex]=true;saveSettings();Trainer.ex=Trainer.pick();Trainer.render()})},
+  loopBtns(){const pl=Player.audio&&!Player.audio.paused,slow=Player.audio&&Player.audio.playbackRate<.9;
+    return '<button class="btn'+(pl?'':' primary')+'" id="melLoop" type="button">'+(pl?"Pause":"▶ Phrase in Schleife")+'</button><button class="btn" id="melRate" type="button">Tempo '+(slow?"75 %":"100 %")+'</button><button class="linkbtn" id="melRemark" type="button">Neu markieren</button>'},
+  tickUi(){clearTimeout(this.uiT);if(!Player.audio||Player.audio.paused)return;const K=Trainer.ex&&Trainer.key(Trainer.ex);if(!K||!K.ex.mel)return;const p=this.phs(K)[this.i];if(p&&!this.sec(p)){this.render();this.uiT=setTimeout(()=>this.tickUi(),500)}},
+  next(K){saveSettings();const phs=this.phs(K);const k=phs.findIndex(q=>!this.doneOf(K,q));if(k<0){Player.pause();return Trainer.passed()}this.i=k;Player.pause();this.render()},
+  stopRec(silent){clearTimeout(this.recT);const r=this.rec;this.rec=null;if(Trainer.st&&Trainer.st.mel&&!this.run)Trainer.st=null;if(silent||!r)return;
+    const K=Trainer.key(Trainer.ex),p=this.phs(K)[this.i];if(r.n.length<2){toast("Zu wenige Töne aufgenommen");return this.render()}
+    const t0=r.t[0];this.P().mel[phKey(p)]={n:r.n,t:r.t.map(x=>Math.round(x-t0))};saveSettings();this.render()},
+  startRun(K){if(!Trainer.piano()){toast("Das geht nur am Klavier");return}const P=this.P(),phs=this.phs(K);
+    this.run={ph:0,pos:0,errs:0,errAt:-1,exp:P.mel[phKey(phs[0])].n,phErr:[]};Trainer.st={mel:true};this.render()},
+  note(n,on){if(!on)return;lastInput=performance.now();
+    if(this.rec){this.rec.n.push(n);this.rec.t.push(performance.now());clearTimeout(this.recT);this.recT=setTimeout(()=>{if(this.rec&&this.rec.n.length>=3)this.stopRec(false)},3500);return this.render()}
+    const r=this.run;if(!r)return;const K=Trainer.key(Trainer.ex),phs=this.phs(K);
+    if(mod(n-r.exp[r.pos],12)===0){r.pos++;r.fb="";r.fbc=""}else{if(r.errAt!==r.pos){r.errAt=r.pos;r.phErr[r.ph]=(r.phErr[r.ph]||0)+1}r.fb="Nicht "+TRN[mod(n,12)];r.fbc="no";bad()}
+    if(r.pos>=r.exp.length){good();r.ph++;r.pos=0;r.errAt=-1;
+      if(r.ph>=phs.length){const P=this.P(),clean=phs.every((q,j)=>(r.phErr[j]||0)<=1);this.run=null;Trainer.st=null;
+        if(clean){P.runs[Trainer.ex]=(P.runs[Trainer.ex]||0)+1;saveSettings();if(P.runs[Trainer.ex]>=2)return Trainer.passed();toast("Sauber durch. Noch einmal.")}else toast("Mehr als ein Fehler in einer Phrase. Noch mal.");return this.render()}
+      r.exp=this.P().mel[phKey(phs[r.ph])].n}
+    this.render()}
+};
+
 /* ---------- Start ---------- */
 buildKb();renderHome();
 (async()=>{
@@ -4431,7 +4560,8 @@ buildKb();renderHome();
   repInit();
   if(!Array.isArray(S.apClasses)||!S.apClasses.length)S.apClasses=[0,4,9];S.level.ap=S.apClasses.length;
   const p=await Store.getPlan();if(p&&((Array.isArray(p.rotation)&&p.rotation.length&&p.rotation.every(validBlocks))||validBlocks(p.blocks)))PLAN=p;
-  if(ensureRepPlan()){Store.setDoc("plan/current","plan",PLAN);S.qKey=null}
+  if(ensurePlan())Store.setDoc("plan/current","plan",PLAN);
+  hanonInit();S.level.hanon=hanonPart(S.hanon.cur);
   syncUi();
   (await Store.list("stats")).filter(x=>x.date===today()).forEach(x=>{const o=Object.assign({},x);delete o.id;Stats.day[x.id]=o});
   DAYS=await Store.list("days");await freshDay();
