@@ -2908,11 +2908,11 @@ const Store={db:true,M:{},meta:{head:null,tree:null},busy:null,again:false,timer
     const com=await this.call("GET","/git/commits/"+head);if(!com.ok)throw new Error("commit");
     const tr=await this.call("GET","/git/trees/"+com.json.tree.sha+"?recursive=1");if(!tr.ok)throw new Error("tree");
     const R={};(tr.json.tree||[]).forEach(e=>{if(e.type==="blob"&&/^data\/.+\.json$/.test(e.path))R[e.path.slice(5,-5)]=e.sha});
-    let changed=false;const need=[];
+    let changed=false;const need=[],first=!this.meta.head;
     for(const p of Object.keys(R)){const L=this.M[p];if(L&&L.sha===R[p])continue;if(L&&!L.sha&&!L.deleted&&L.text&&await gitSha(L.text)===R[p]){L.sha=R[p];this.save(p);continue}need.push(p)}
     const work=need.slice();const run=async()=>{while(work.length){const p=work.shift();const b=await this.call("GET","/git/blobs/"+R[p]);if(!b.ok)throw new Error("blob");
         const text=b64text(b.json.content);let o;try{o=JSON.parse(text)}catch(e){continue}const L=this.M[p];
-        if(L&&L.dirty&&(L.ts||0)>(o.ts||0)){L.sha=R[p];this.save(p);continue}
+        if(L&&L.dirty&&!first&&(L.ts||0)>(o.ts||0)){L.sha=R[p];this.save(p);continue}
         this.M[p]={data:o.data,ts:o.ts||0,text,sha:R[p],dirty:false,deleted:false};this.save(p);changed=true}};
     await Promise.all([run(),run(),run(),run(),run(),run()]);
     for(const p of Object.keys(this.M)){if(R[p])continue;const L=this.M[p];
