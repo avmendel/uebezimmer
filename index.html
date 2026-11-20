@@ -3636,32 +3636,44 @@ const Hanon={timed:true,running:false,buf:[],okRun:0,failRun:0,good:0,which:null
     el.innerHTML=`<div class="stage"><div class="keyname">Hanon Nr. ${n}${isRev?" · Wiederholung":""}</div>
     <p class="small">Aus deinem Heft (gemeinfrei, kostenlos bei IMSLP). Beide Hände, Sechzehntel zum Metronom, ohne Pause wiederholen. Locker aus den Fingern, Handgelenk ruhig, nicht drücken. Wird es eng in Hand oder Unterarm: Pause.</p>
     <div class="stats"><div class="stat"><span class="label">Tempo</span><b id="hBpm">${this.bpm()}</b></div><div class="stat"><span class="label">Ziel</span><b>${hanonTarget(n)}</b></div><div class="stat"><span class="label">Timing ±</span><b id="hTim">–</b></div><div class="stat"><span class="label">Anschlag ±</span><b id="hVel">–</b></div></div>
-    <div class="fb" id="hFb"></div>${HANON_DATA[n]?'<div class="sheet" id="hSheet"></div><p class="small muted">Der erste Takt zur Erinnerung. Abwärts spielst du die gespiegelte Figur.</p>':'<p class="small muted">Noten ab Nr. 21 kommen aus deinem Heft.</p>'}
-    <p class="small muted">Geschafft: ${Object.keys(H.done).length} von 60 · aktuell Nr. ${H.cur}. Das Tempo steigt, wenn du dreimal hintereinander gleichmäßig spielst. Im Zieltempo gilt die Nummer als geschafft und die nächste kommt.</p></div>
+    <div class="fb" id="hFb"></div>${HANON_DATA[n]?'<div class="sheet" id="hSheet"></div><p class="small muted">Die Noten laufen mit, der aktuelle Ton ist markiert. Die App prüft Timing, Anschlag und die richtigen Töne.</p>':'<p class="small muted">Noten ab Nr. 21 kommen aus deinem Heft.</p>'}
+    <p class="small muted">Geschafft: ${Object.keys(H.done).length} von 60 · aktuell Nr. ${H.cur}. Nach dreimal gleichmäßig hintereinander stoppt das Metronom und die nächste Runde startet etwas schneller. Während du spielst, ändert sich das Tempo nie. Im Zieltempo gilt die Nummer als geschafft und die nächste kommt.</p></div>
     <div class="row"><button class="btn primary" id="hGo" type="button">${this.running?"Stoppen":"Starten"}</button>${rv&&!isRev?`<button class="btn" id="hRev" type="button">Wiederholung: Nr. ${rv}</button>`:""}${isRev?`<button class="btn" id="hCur" type="button">Zurück zu Nr. ${H.cur}</button>`:""}</div>`;
     $("#hGo").onclick=()=>this.running?this.stop():this.start();
-    if(HANON_DATA[n]){const D=HL.data(n),mk=(arr,fs)=>[arr.slice(0,16).map((m,j)=>({n:[m],d:1,f:fs[j]}))];
-      drawAbc($("#hSheet"),abcDoc({meter:"2/4",len:"1/16",beat:4,voices:[{clef:"bass",bars:mk(D.r,D.rf)},{clef:"bass",bars:mk(D.l,D.lf)}]}),620)}
+    this.pos=0;this.win=-1;this.draw();
     if($("#hRev"))$("#hRev").onclick=()=>{this.stop();this.which=rv;this.mount(el)};
     if($("#hCur"))$("#hCur").onclick=()=>{this.stop();this.which=null;this.mount(el)}},
-  start(){const n=this.num();if(n===this.H().cur&&HL.learning(n)){if(!HL.st||HL.st.n!==n)HL.begin(n);return}this.running=true;this.buf=[];this.okRun=0;this.failRun=0;this.last=0;Metro.start(this.bpm(),true);const b=$("#hGo");if(b)b.textContent="Stoppen"},
+  pos:0,got:[],errs:0,errAt:-1,win:-1,
+  seqLen(){const D=HL.data(this.num());return D?D.r.length:0},
+  exp(p){const D=HL.data(this.num());return D?[D.r[p],D.l[p]]:null},
+  async draw(){const el=$("#hSheet"),D=HL.data(this.num());if(!el||!D)return;const L=D.r.length,w=Math.floor(this.pos/32);
+    if(w!==this.win){this.win=w;const a=w*32,b=Math.min(L,a+32);
+      const mk=(arr,fs)=>{const bars=[];for(let i=a;i<b;i+=16){const bar=[];for(let j=i;j<Math.min(b,i+16);j++)bar.push({n:[arr[j]],d:j===L-1?8:1,f:fs[j]});bars.push(bar)}return bars};
+      const clefOf=arr=>{const x=arr.slice(a,b);return x.reduce((q,y)=>q+y,0)/x.length>=59?"treble":"bass"};
+      this.drawing=drawAbc(el,abcDoc({meter:"2/4",len:"1/16",beat:4,voices:[{clef:clefOf(D.r),bars:mk(D.r,D.rf)},{clef:clefOf(D.l),bars:mk(D.l,D.lf)}]}),620)}
+    await this.drawing;const k=this.pos-w*32;markNote(el,"sg-cur",".abcjs-note.abcjs-mm"+Math.floor(k/16)+".abcjs-n"+(k%16))},
+  pitch(n){const L=this.seqLen();if(!L)return;const e=this.exp(this.pos);
+    if(e.includes(n)&&!this.got.includes(n)){this.got.push(n);if(this.got.length>=2){this.got=[];this.pos=(this.pos+1)%L;this.draw()}return}
+    for(let k=1;k<=3;k++){const p=(this.pos+k)%L;if(this.exp(p).includes(n)){this.errs+=k-(this.errAt===this.pos?1:0);this.pos=p;this.got=[n];this.draw();return}}
+    if(this.errAt!==this.pos){this.errAt=this.pos;this.errs++}},
+  start(){const n=this.num();if(n===this.H().cur&&HL.learning(n)){if(!HL.st||HL.st.n!==n)HL.begin(n);return}this.running=true;this.buf=[];this.okRun=0;this.failRun=0;this.last=0;this.pos=0;this.got=[];this.errs=0;this.draw();Metro.start(this.bpm(),true);const b=$("#hGo");if(b)b.textContent="Stoppen"},
   stop(){this.running=false;Metro.stop();const b=$("#hGo");if(b)b.textContent="Starten"},
-  on(n,v,ts){if(HL.st&&HL.st.n===this.num()&&HL.learning(this.num()))return HL.note(n);if(!this.running||ts<Metro.t0p-200)return;
+  on(n,v,ts){if(HL.st&&HL.st.n===this.num()&&HL.learning(this.num()))return HL.note(n);if(!this.running||ts<Metro.t0p-200)return;this.pitch(n);
     if(this.buf.length&&ts-this.buf[this.buf.length-1].ts<45){const x=this.buf[this.buf.length-1];x.v=(x.v*x.k+v)/(x.k+1);x.k++;return}
     this.buf.push({ts,v,k:1});if(this.buf.length>=32){this.eval(this.buf);this.buf=[]}},
   eval(b){const sub=Metro.beat*1000/4,ph=b.map(x=>2*Math.PI*mod(x.ts-Metro.t0p,sub)/sub),mp=Math.atan2(ph.reduce((a,x)=>a+Math.sin(x),0),ph.reduce((a,x)=>a+Math.cos(x),0))*sub/(2*Math.PI),dev=b.map(x=>{let r=mod(x.ts-Metro.t0p-mp,sub);if(r>sub/2)r-=sub;return r}),m=dev.reduce((a,x)=>a+x,0)/dev.length;
     const sd=Math.sqrt(dev.reduce((a,x)=>a+(x-m)*(x-m),0)/dev.length),vm=b.reduce((a,x)=>a+x.v,0)/b.length,vcv=Math.sqrt(b.reduce((a,x)=>a+(x.v-vm)*(x.v-vm),0)/b.length)/vm;
     const span=(b[b.length-1].ts-b[0].ts)/sub,steady=Math.abs(span-(b.length-1))<=2;
-    const lim=Math.min(32,sub*.28),ok=steady&&sd<lim&&vcv<.16;Stats.add("hanon",ok,Math.round(sd)||1);
+    const errs=this.seqLen()?this.errs:0;this.errs=0;const lim=Math.min(32,sub*.28),ok=steady&&sd<lim&&vcv<.16&&errs<=1;Stats.add("hanon",ok,Math.round(sd)||1);
     const set=(id,t)=>{const e=$(id);if(e)e.textContent=t};set("#hTim",Math.round(sd)+" ms");set("#hVel",Math.round(vcv*100)+" %");
-    const fb=$("#hFb");if(fb){fb.className="fb "+(ok?"ok":"no");fb.textContent=ok?"Gleichmäßig":!steady?"Sechzehntel verloren oder Pause gemacht":sd>=lim?"Timing noch ungleichmäßig":"Anschlag noch ungleichmäßig"}
+    const fb=$("#hFb");if(fb){fb.className="fb "+(ok?"ok":"no");fb.textContent=ok?"Gleichmäßig":errs>1?errs+" falsche Töne":!steady?"Sechzehntel verloren oder Pause gemacht":sd>=lim?"Timing noch ungleichmäßig":"Anschlag noch ungleichmäßig"}
     if(ok){this.okRun++;this.failRun=0;good()}else{this.failRun++;this.okRun=0}
     const H=this.H(),n=this.num(),isRev=n!==H.cur;
     if(this.okRun>=3){this.okRun=0;
       if(isRev){H.done[n]=today();saveSettings();toast("Nr. "+n+" sitzt noch");say("Sitzt noch.");bonus(10);this.stop();this.which=null;Host.head();Host.mountCur();return}
       if(this.bpm()>=hanonTarget(n)){H.done[n]=today();H.cur=Math.min(60,n+1);bonus(40);burst(60);toast("Hanon Nr. "+n+" geschafft. Weiter mit Nr. "+H.cur);say("Geschafft. Weiter mit Nummer "+H.cur+".");S.level.hanon=hanonPart(H.cur);this.stop();saveSettings();Host.head();Host.mountCur();return}
-      H.bpm[n]=Math.min(hanonTarget(n),this.bpm()+4);toast("Tempo "+H.bpm[n]);say("Tempo "+H.bpm[n]);Metro.start(H.bpm[n],false);saveSettings()}
-    else if(this.failRun>=3&&!isRev){this.failRun=0;H.bpm[n]=Math.max(48,this.bpm()-4);toast("Etwas langsamer: "+H.bpm[n]);Metro.start(H.bpm[n],false);saveSettings()}
+      H.bpm[n]=Math.min(hanonTarget(n),this.bpm()+4);this.stop();saveSettings();toast("Gut. Nächste Runde mit Tempo "+H.bpm[n]);say("Gut. Nächste Runde etwas schneller.");if(fb){fb.className="fb ok";fb.textContent="Dreimal gleichmäßig. Nächste Runde: Tempo "+H.bpm[n]+". Starten, wenn du bereit bist."}}
+    else if(this.failRun>=3&&!isRev){this.failRun=0;H.bpm[n]=Math.max(48,this.bpm()-4);this.stop();saveSettings();toast("Nächste Runde etwas langsamer: "+H.bpm[n]);if(fb){fb.className="fb no";fb.textContent="Dreimal unruhig. Nächste Runde: Tempo "+H.bpm[n]+". Starten, wenn du bereit bist."}}
     S.hist.hanon=(S.hist.hanon||[]).concat([ok?1:0]).slice(-10);Host.head();set("#hBpm",this.bpm())}
 };
 
