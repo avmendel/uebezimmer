@@ -310,6 +310,7 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
         <span class="muted small" id="startHint"></span>
       </div>
     </div>
+    <div class="card" id="repHome"><div class="label">Repertoire · ohne Uhr</div><p class="small muted">Spiel das Stück, wann es dir passt, und bewerte es danach. Zählt nicht zur Übezeit.</p><div id="repHomeBody"></div></div>
     <details class="card" id="syncCard">
       <summary class="label">Abgleich zwischen deinen Geräten · <span id="syncInfo"></span></summary>
       <p class="small" id="syncHow"></p>
@@ -4169,13 +4170,13 @@ function blk(type,share,extra){const base=SK[type]?{type,title:SK[type].title,te
 /* ---------- Übeprogramm 30 Minuten (v3) ---------- */
 const FREE_AL={title:"Freies Spiel über Autumn Leaves",text:"Links die Grundtöne oder Shells der Form, rechts Bruchstücke der Melodie und eigene Varianten davon. Nicht anhalten, falsche Töne sind erlaubt. Wird aufgenommen.",bpm:72,metronome:true};
 const FREE_BL={title:"Freies Spiel: Blues in F",text:"Links F7, B♭7, C7 als Shells, rechts kurze Phrasen aus der Bluestonleiter F, A♭, B♭, B, C, E♭. Fragen und Antworten, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true};
-const PLAN_V3={v:3,dur:30,title:"Übeprogramm: 30 Minuten",
-  note:"Jeden Klaviertag: Hanon, Autumn Leaves und Repertoire. Abwechselnd dazu freies Spiel, Blattlesen und Tonleitern. Die Hörübungen gehen auch am iPhone. Autumn Leaves beginnt jetzt mit der Melodie nach Gehör, der Song-Trainer führt dich Schritt für Schritt.",
+const PLAN_V3={v:4,dur:30,title:"Übeprogramm: 30 Minuten",
+  note:"Jeden Klaviertag: Hanon und Autumn Leaves. Abwechselnd dazu Voicings, freies Spiel über Autumn Leaves und Blues, Echo, Blattlesen und Gehör. Repertoire übst du ohne Uhr, die Karte unten schlägt dir ein Stück vor.",
   rotation:[
-    [blk("hanon",.15),blk("dofind",.08),blk("song",.3),blk("rec",.15,FREE_AL),blk("rep",.22),blk("names",.1)],
-    [blk("hanon",.15),blk("ear",.1),blk("song",.3),blk("rep",.2),blk("sight",.15),blk("bass",.1)],
-    [blk("hanon",.12),blk("tech",.1),blk("dofind",.08),blk("song",.25),blk("rec",.15,FREE_BL),blk("rep",.2),blk("prog",.1)]]};
-function ensurePlan(){if((+PLAN.v||0)>=3)return false;PLAN=JSON.parse(JSON.stringify(PLAN_V3));S.dur=PLAN.dur;S.qKey=null;S.qPos=0;saveSettings();return true}
+    [blk("hanon",.15),blk("dofind",.08),blk("song",.3),blk("voice",.15),blk("rec",.2,FREE_AL),blk("names",.12)],
+    [blk("hanon",.15),blk("ear",.1),blk("song",.3),blk("voice",.15),blk("echo",.15),blk("sight",.15)],
+    [blk("hanon",.12),blk("tech",.1),blk("dofind",.08),blk("song",.25),blk("rec",.25,FREE_BL),blk("prog",.1),blk("bass",.1)]]};
+function ensurePlan(){if((+PLAN.v||0)>=4)return false;PLAN=JSON.parse(JSON.stringify(PLAN_V3));S.dur=PLAN.dur;S.qKey=null;S.qPos=0;saveSettings();return true}
 
 const DEFAULT_ROTATION=[
   [blk("dofind",.15),blk("names",.1),blk("song",.35),blk("ear",.1),blk("blind",.05),blk("rec",.15,{title:"Freies Spiel",text:"Frei über Blues in F oder die Form von Autumn Leaves. Wird aufgenommen, nicht bewertet."}),blk("bass",.1)],
@@ -4302,6 +4303,8 @@ function renderHome(){
   {const rt=document.querySelector('.tab[data-p="rec"]');if(rt)rt.hidden=!LOCAL&&!hasPiano}
   $("#planTitle").textContent=PLAN.title||"Übeplan";const n=$("#planNote");n.hidden=!PLAN.note;n.textContent=PLAN.note||"";
   const d=curDay();let rows;
+  if(d&&d.blocks.some(b=>b.type==="rep"&&!b.done)){d.blocks=d.blocks.filter(b=>!(b.type==="rep"&&!b.done));persistDay(true)}
+  Rep.home();
   if(d&&!S.apOn){const ap=d.blocks.filter(b=>b.type==="ap"&&!b.done);if(ap.length){d.blocks=d.blocks.filter(b=>!(b.type==="ap"&&!b.done));persistDay(true)}}
   if(d)rows=d.blocks.filter(b=>S.apOn||b.type!=="ap").map((b,i)=>({t:b.title,x:b.text,min:b.done?(b.skipped?"–":"✓"):(b.leftMs<b.ms-5000?fmt(b.leftMs):Math.round(b.ms/60000)+" min"),cls:b.done?"done":b===d.blocks[nextIdx(d)]&&practicedMs(d)>0?"cur":"",type:b.type,done:b.done,ms:b.done?0:Math.max(0,b.leftMs)}));
   else rows=todayBlocks(S.dur).map(b=>({t:b.title,x:b.text,min:b.min+" min",cls:"",type:b.type,done:false,ms:b.min*60000}));
@@ -4544,11 +4547,18 @@ const Rep={sessRated:0,sessClean:0,doneToday:new Set(),
     else if(r==="holprig"){p.ok=0;p.iv=p.stage==="halten"?Math.max(4,Math.round((p.iv||7)*.6)):2;bonus(5)}
     else{p.ok=0;if(p.stage==="halten"){p.stage="festigen";toast("Zurück ins Festigen")}p.iv=1;bonus(2)}
     p.due=addDays(t,p.iv);saveSettings();this.render()},
+  more:false,
+  home(){const el=$("#repHomeBody");if(!el)return;const t=today(),L=this.todayList(),rated=this.pieces().filter(p=>p.last===t),open=L.filter(p=>p.last!==t);
+    let h="";if(rated.length)h+='<p class="small">Heute gespielt: '+rated.map(p=>esc(p.title.split(":").pop().trim())+" ("+esc((p.log[p.log.length-1]||{}).r||"")+")").join(", ")+' ✓</p>';
+    const show=rated.length&&!this.more?null:open[0];
+    if(show)h+=this.card(show);else if(open.length)h+='<button class="linkbtn" id="repMore" type="button">Noch ein Stück</button>';else if(!rated.length)h+='<p class="small muted">Heute ist kein Stück fällig.</p>';
+    el.innerHTML=h;el.querySelectorAll(".repc button[data-r]").forEach(b=>b.onclick=()=>{this.more=false;this.rate(b.closest(".repc").dataset.id,b.dataset.r)});
+    const m=$("#repMore");if(m)m.onclick=()=>{this.more=true;this.home()}},
   begin(){this.sessRated=0;this.sessClean=0;this.render()},
   card(p){const t=today(),done=p.last===t,lern=p.stage==="lernen";
     const btns=done?'<span class="small muted">Für heute bewertet ✓</span>':lern?'<button class="btn" data-r="geuebt">Geübt</button><button class="btn" data-r="fertig">Kann ich durchspielen</button>':'<button class="btn" data-r="sauber">Sauber</button><button class="btn" data-r="holprig">Holprig</button><button class="btn" data-r="raus">Rausgeflogen</button>';
     return '<div class="repc'+(done?' done':'')+'" data-id="'+esc(p.id)+'"><div class="t">'+esc(p.title)+' <span class="tag">'+esc(p.stage)+'</span></div><div class="d small">'+esc(this.tip(p))+'</div><div class="row">'+btns+'</div></div>'},
-  render(){const el=$("#repToday");if(!el)return;const list=this.todayList();
+  render(){this.home();const el=$("#repToday");if(!el)return;const list=this.todayList();
     el.innerHTML=list.length?list.map(p=>this.card(p)).join(""):'<p class="muted small">Heute ist kein Stück fällig.</p>';
     el.querySelectorAll(".repc button[data-r]").forEach(b=>b.onclick=()=>this.rate(b.closest(".repc").dataset.id,b.dataset.r));
     const all=$("#repAll");if(!all)return;const P=this.pieces(),fmtD=d=>d?d.split("-").reverse().slice(0,2).join("."):"–";
