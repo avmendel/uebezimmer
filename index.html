@@ -3905,7 +3905,7 @@ const TR_EX={
   shell:{st:"Shells",title:"Shells ohne Bild",piano:true,how:"Jetzt nur der Akkordname. Greif Grundton plus Septime oder Grundton plus Terz. Tipp: Der obere Ton bleibt liegen oder rutscht einen Schritt nach unten."},
   shellT:{st:"Shells",title:"Shells im Takt",piano:true,timed:true,bpm:60,how:"Das Schlagzeug zählt ein. Greif auf jede Eins den Shell und halt ihn den ganzen Takt."},
   shellM:{st:"Shells",title:"Shells aus dem Kopf",piano:true,timed:true,hide:true,bpm:70,how:"Die Akkordnamen sind verdeckt, du siehst nur die Taktnummer. Greif die Shells aus dem Kopf im Takt."},
-  melH:{st:"Melodie",title:"Melodie hören und singen",mel:"hear",how:"Phrase für Phrase: Die App spielt dir vier Takte aus deiner Aufnahme in Schleife vor. Erst zuhören, dann auf Silben mitsingen, do = G. „Kann ich singen“, sobald es ohne Aufnahme klappt."},
+  melH:{st:"Melodie",title:"Melodie hören und singen",mel:"hear",how:"Phrase für Phrase: Die App spielt dir vier Takte aus deiner Aufnahme in Schleife vor. Erst zuhören, dann auf Silben mitsingen, do-basiertes Moll. Silben eintippen, anhören und mit dem Mikrofon prüfen. „Kann ich singen“, sobald es ohne Aufnahme klappt."},
   melF:{st:"Melodie",title:"Melodie am Klavier finden",piano:true,mel:"find",how:"Phrase für Phrase: Hör die Schleife und such die Töne rechts am Klavier. Klingt es wie die Aufnahme, nimm die Phrase einmal auf. Das ist ab jetzt deine Fassung, gegen die die App später prüft."},
   melP:{st:"Melodie",title:"Melodie rechts spielen",piano:true,mel:"play",how:"Spiel deine Fassung rechts allein, alle Phrasen hintereinander. Die App prüft jeden Ton, ein Fehler pro Phrase ist erlaubt. Zweimal sauber."},
   bothR:{st:"Zusammen",title:"Melodie + Grundtöne",piano:true,timed:true,bpm:60,both:true,how:"Rechts die Melodie, links auf jede Eins der Grundton als ganze Note. Die App prüft die linke Hand."},
@@ -4581,7 +4581,7 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
   async file(){if(Player.cur)return Player.cur;const f=await IDB.get("files","mel:"+Trainer.id);if(f){try{Player.add([f]);await Player.open(f)}catch(e){}}return Player.cur},
   async pickFile(f){if(!f)return;IDB.put("files","mel:"+Trainer.id,f);Player.add([f]);await Player.open(f);this.render()},
   enter(K){const phs=this.phs(K);const k=phs.findIndex(p=>!this.doneOf(K,p));this.i=k<0?0:k;this.run=null;this.stopRec(true)},
-  stop(){this.stopRec(true);this.run=null;this.tap=null;if(Player.audio&&!Player.audio.paused)Player.pause()},
+  stop(){Sing.micStop();this.stopRec(true);this.run=null;this.tap=null;if(Player.audio&&!Player.audio.paused)Player.pause()},
   async render(){const K=Trainer.key(Trainer.ex),st=$("#trStage"),ctl=$("#trCtl");if(!st||!ctl)return;const f=await this.file();
     const phs=this.phs(K),P=this.P(),p=phs[this.i];
     const chips='<div class="row">'+phs.map((q,j)=>'<button class="btn'+(j===this.i?' primary':'')+'" data-ph="'+j+'" type="button">'+(this.doneOf(K,q)?"✓ ":"")+"Takt "+(q[0]+1)+"–"+(q[1]+1)+'</button>').join("")+'</div>';
@@ -4598,11 +4598,11 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
       body='<p class="small"><b>Am schnellsten:</b> einmal den ganzen Song hören und an acht Stellen tippen, dann sind alle Phrasen auf einmal markiert.</p><div class="row"><button class="btn primary" id="melTapGo" type="button">Ganzen Song durchtippen</button></div><p class="small muted">Oder nur diese eine Phrase von Hand:</p>'+body;
       btns='<button class="btn" id="melPlay" type="button">'+(Player.audio&&!Player.audio.paused?"Pause":"Abspielen")+'</button><button class="btn" id="melBack" type="button">−5 s</button><button class="btn" id="melA" type="button">Phrase beginnt</button><button class="btn" id="melB" type="button"'+(a===null?' disabled':'')+'>Phrase endet</button>'}
     else if(K.ex.mel==="hear"){
-      body='<p>Erst dreimal nur zuhören. Dann auf Silben mitsingen, do = G. Zum Schluss die Schleife anhalten und die Phrase allein singen.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>';
+      body='<p>Erst dreimal nur zuhören. Dann auf Silben mitsingen, do-basiertes Moll. Silben eintippen und anhören, ob es wie die Aufnahme klingt. Zum Schluss die Schleife anhalten und die Phrase allein singen.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>'+Sing.html(p);
       btns=this.loopBtns()+'<button class="btn" id="melOk" type="button">Kann ich singen</button>'}
     else if(K.ex.mel==="find"){const r=P.mel[phKey(p)],recN=this.rec?this.rec.n:null;
       body='<p>Hör die Schleife und such die Töne rechts am Klavier. Klingt es wie die Aufnahme, drück „Aufnehmen“ und spiel die Phrase einmal.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>'+
-        (recN?'<p class="mono">Aufnahme läuft: '+esc(recN.map(n=>TRN[mod(n,12)]).join(" "))+'</p>':r?'<p class="mono">Deine Fassung: '+esc(r.n.map(n=>TRN[mod(n,12)]).join(" "))+'</p>':'');
+        (Sing.list(p).length?'<p class="small">Deine Silben: <span class="mono">'+esc(Sing.list(p).map(sylName).join(" "))+'</span> = '+esc(Sing.list(p).map(o=>TRN[mod(Sing.base()+o,12)]).join(" "))+'</p>':'')+(recN?'<p class="mono">Aufnahme läuft: '+esc(recN.map(n=>TRN[mod(n,12)]).join(" "))+'</p>':r?'<p class="mono">Deine Fassung: '+esc(r.n.map(n=>TRN[mod(n,12)]).join(" "))+'</p>':'');
       btns=this.loopBtns()+(this.rec?'<button class="btn primary" id="melStop" type="button">Fertig</button>':'<button class="btn" id="melRec" type="button">'+(r?"Neu aufnehmen":"Aufnehmen")+'</button>')+(r&&!this.rec?'<button class="btn" id="melHearMe" type="button">Meine Fassung anhören</button><button class="btn primary" id="melKeep" type="button">Passt, weiter</button>':'')}
     else{const miss=phs.filter(q=>!(P.mel[phKey(q)]&&P.mel[phKey(q)].n.length));
       if(miss.length){body='<p class="fb no">Für Takt '+miss.map(q=>(q[0]+1)+"–"+(q[1]+1)).join(", ")+' fehlt noch deine Fassung. Erst im Schritt „Melodie am Klavier finden“ aufnehmen.</p>'}
@@ -4612,7 +4612,8 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
     const runs=P.runs[Trainer.ex]||0;
     st.innerHTML='<div class="stage">'+(K.ex.mel!=="play"?chips:"")+body+'</div>';
     ctl.innerHTML=(K.ex.piano&&!Trainer.piano()?'<p class="small fb no">Das geht nur am Klavier, am Mac in Chrome.</p>':'')+'<div class="row">'+btns+'</div><div class="row small muted">'+(K.ex.mel==="play"?'Saubere Durchgänge: '+runs+' von 2':phs.filter(q=>this.doneOf(K,q)).length+' von '+phs.length+' Phrasen')+(P.done[Trainer.ex]?'':' <button class="linkbtn small" id="trSkip" type="button">Kann ich schon</button>')+'</div>';
-    st.querySelectorAll("[data-ph]").forEach(b=>b.onclick=()=>{this.stop();this.i=+b.dataset.ph;Player.a=Player.b=null;this.render()});
+    if(K.ex.mel==="hear"&&p&&this.sec(p)&&!this.tap)Sing.bind(p);
+    st.querySelectorAll("[data-ph]").forEach(b=>b.onclick=()=>{this.stop();Sing.lastSung=null;Sing.lastP=null;this.i=+b.dataset.ph;Player.a=Player.b=null;this.render()});
     const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=()=>{ac();lastInput=performance.now();fn()}};
     const fi=$("#melFile");if(fi)fi.onchange=e=>this.pickFile(e.target.files[0]);
     on("melPlay",()=>{const el=Player.el();if(el.paused)Player.play();else Player.pause();this.tickUi()});
@@ -4660,6 +4661,66 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
 };
 
 document.addEventListener("keydown",e=>{if(Mel.tap&&e.code==="Space"&&!/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){e.preventDefault();e.stopPropagation();Mel.tapNow()}},true);
+
+/* ---------- Song-Trainer: Silben eintragen und Singen prüfen ---------- */
+const SYL=["do","ra","re","me","mi","fa","fi","sol","le","la","te","ti"],SYL_MAIN=[0,2,3,5,7,8,10],SYL_CHR=[1,4,6,9,11];
+const sylName=o=>SYL[mod(o,12)]+(o>=12?"'":o<0?",":"");
+const Sing={oct:0,mic:null,
+  P(){const P=Mel.P();P.syl=P.syl||{};if(typeof P.doPc!=="number")P.doPc=7;return P},
+  base(){const pc=this.P().doPc;let b=48+pc;if(b<53)b+=12;return b},
+  list(p){const P=this.P(),k=phKey(p);return P.syl[k]=P.syl[k]||[]},
+  add(p,pc){const L=this.list(p);let o=pc;if(L.length){const prev=L[L.length-1];o=pc+12*Math.round((prev-pc)/12)}else if(pc>7)o=pc-12;o+=12*this.oct;this.oct=0;L.push(o);saveSettings();this.line(p)},
+  line(p){const el=$("#sylLine");if(!el)return;const L=this.list(p);el.textContent=L.length?L.map(sylName).join(" "):"noch leer";const oc=$("#sylOct");if(oc)oc.textContent=this.oct>0?"nächster Ton: Oktave höher":this.oct<0?"nächster Ton: Oktave tiefer":"";this.compare(p)},
+  html(p){const P=this.P();
+    return '<div class="card" style="margin:10px 0"><div class="label">Deine Silben</div><p class="small">do = <select id="melDo" aria-label="do">'+TRN.map((t,i)=>'<option value="'+i+'"'+(i===P.doPc?" selected":"")+'>'+t+'</option>').join("")+'</select> · do-basiertes Moll: do re me fa sol le te. do ist der Grundton der Molltonart deiner Aufnahme.</p>'+
+      '<p class="mono" id="sylLine" style="font-size:1.15rem"></p><p class="small muted" id="sylOct"></p>'+
+      '<div class="row">'+SYL_MAIN.map(i=>'<button class="btn" data-syl="'+i+'" type="button">'+SYL[i]+'</button>').join("")+'</div>'+
+      '<div class="row">'+SYL_CHR.map(i=>'<button class="btn small" data-syl="'+i+'" type="button">'+SYL[i]+'</button>').join("")+'<button class="btn small" id="sylDn" type="button">Oktave ↓</button><button class="btn small" id="sylUp" type="button">Oktave ↑</button><button class="btn small" id="sylDel" type="button">⌫</button><button class="linkbtn" id="sylClr" type="button">Leeren</button></div>'+
+      '<div class="row"><button class="btn" id="sylPlay" type="button">Meine Silben anhören</button><button class="btn" id="micGo" type="button">'+(this.mic?"Mikrofon aus":"Singen prüfen (Mikrofon)")+'</button></div>'+
+      '<div id="micBox"></div>'+
+      '<p class="small muted">So prüfst du: Silben eintippen, dann „Meine Silben anhören“ direkt nach der Schleife. Klingt es gleich, stimmen die Silben. Mit dem Mikrofon singst du die Phrase allein (Schleife aus); die App zeigt, welche Silben du wirklich gesungen hast, und vergleicht sie mit deinen eingetippten.</p></div>'},
+  bind(p){const st=$("#trStage");if(!st)return;
+    st.querySelectorAll("[data-syl]").forEach(b=>b.onclick=()=>{this.add(p,+b.dataset.syl);playSeq([{n:this.base()+this.list(p).slice(-1)[0],t:ac().currentTime+.02,d:.4,v:70}],true)});
+    const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=()=>{ac();lastInput=performance.now();fn()}};
+    on("sylUp",()=>{this.oct=Math.min(1,this.oct+1);this.line(p)});on("sylDn",()=>{this.oct=Math.max(-1,this.oct-1);this.line(p)});
+    on("sylDel",()=>{this.list(p).pop();saveSettings();this.line(p)});
+    on("sylClr",()=>{if(!confirmBtn($("#sylClr")))return;this.P().syl[phKey(p)]=[];saveSettings();this.line(p)});
+    on("sylPlay",()=>{const L=this.list(p);if(!L.length)return toast("Erst Silben eintippen");if(Player.audio&&!Player.audio.paused)Player.pause();const t0=ac().currentTime+.1,b=this.base();playSeq(L.map((o,j)=>({n:b+o,t:t0+j*.42,d:.38,v:70})),true)});
+    on("micGo",()=>this.mic?this.micStop():this.micStart(p));
+    const sel=$("#melDo");if(sel)sel.onchange=()=>{this.P().doPc=+sel.value;saveSettings();this.line(p)};
+    this.line(p);this.micUi()},
+  /* Mikrofon: Tonhöhe per Autokorrelation, stabile Töne werden zu Silben */
+  async micStart(p){if(Player.audio&&!Player.audio.paused)Player.pause();
+    let stream;try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}})}catch(e){toast("Kein Zugriff aufs Mikrofon");return}
+    const ctx=ac(),src=ctx.createMediaStreamSource(stream),an=ctx.createAnalyser();an.fftSize=2048;src.connect(an);
+    this.mic={stream,an,buf:new Float32Array(2048),p,notes:[],cur:null,cand:null,quiet:0,live:null};const g=$("#micGo");if(g)g.textContent="Mikrofon aus";this.micUi();this.micLoop()},
+  micStop(){const m=this.mic;if(!m)return;m.stream.getTracks().forEach(t=>t.stop());cancelAnimationFrame(m.raf);this.mic=null;const b=$("#micGo");if(b)b.textContent="Singen prüfen (Mikrofon)";this.micUi()},
+  pitch(buf,sr){let rms=0;for(const x of buf)rms+=x*x;rms=Math.sqrt(rms/buf.length);if(rms<.012)return {f:0,rms};
+    const n=buf.length,minL=Math.floor(sr/1000),maxL=Math.floor(sr/70);let best=-1,bl=0;const c=[];
+    for(let l=minL;l<=maxL;l++){let s=0,e=0;for(let i=0;i<n-l;i++){s+=buf[i]*buf[i+l];e+=buf[i]*buf[i]+buf[i+l]*buf[i+l]}const v=2*s/(e||1);c[l]=v;if(v>best){best=v;bl=l}}
+    if(best<.75)return {f:0,rms};
+    for(let l=minL;l<bl;l++)if(c[l]>=best*.92&&c[l]>=(c[l-1]||0)&&c[l]>=(c[l+1]||0)){bl=l;break}
+    const a=c[bl-1]||0,b=c[bl],d=c[bl+1]||0,sh=(a-d)/(2*(a-2*b+d)||1);return {f:sr/(bl+(isFinite(sh)?sh:0)),rms}},
+  micLoop(){const m=this.mic;if(!m)return;m.an.getFloatTimeDomainData(m.buf);const {f}=this.pitch(m.buf,ac().sampleRate),now=performance.now();
+    if(f){const midi=69+12*Math.log2(f/440),r=Math.round(midi);m.live={r,c:Math.round((midi-r)*100)};m.quiet=0;
+      if(!m.cand||Math.abs(midi-m.cand.m)>.6)m.cand={m:midi,r,t:now};else m.cand.m=m.cand.m*.8+midi*.2;
+      if(now-m.cand.t>140&&(!m.cur||m.cur.r!==m.cand.r)){m.cur={r:m.cand.r};m.notes.push(m.cand.r);this.micUi()}}
+    else{m.live=null;m.quiet++;if(m.quiet>4){m.cur=null;m.cand=null}}
+    const lv=$("#micLive");if(lv)lv.textContent=m.live?SYL[mod(m.live.r-this.base(),12)]+"  "+(m.live.c>0?"+":"")+m.live.c+" ct":"–";
+    m.raf=requestAnimationFrame(()=>this.micLoop())},
+  micUi(){const box=$("#micBox");if(!box)return;const m=this.mic;
+    if(!m){box.innerHTML=this.lastSung&&this.lastSung.length?'<p class="small">Zuletzt gesungen: <span class="mono">'+esc(this.lastSung.map(r=>SYL[mod(r-this.base(),12)]).join(" "))+'</span></p><div id="sylCmp"></div>':'';if(this.lastP)this.compare(this.lastP);return}
+    this.lastSung=m.notes;this.lastP=m.p;
+    box.innerHTML='<div class="chord" id="micLive">–</div><p class="small">Gesungen: <span class="mono">'+esc(m.notes.map(r=>SYL[mod(r-this.base(),12)]).join(" ")||"…")+'</span></p><div id="sylCmp"></div><div class="row"><button class="btn small" id="micClr" type="button">Neu</button></div>';
+    const c=$("#micClr");if(c)c.onclick=()=>{m.notes=[];m.cur=null;this.micUi()};this.compare(m.p)},
+  /* Vergleich: eingetippte Silben gegen gesungene (Tonklassen, Ausrichtung per LCS) */
+  compare(p){const el=$("#sylCmp");if(!el)return;const L=this.list(p),S=(this.mic?this.mic.notes:this.lastSung)||[];if(!L.length||!S.length){el.innerHTML="";return}
+    const b=this.base(),a=L.map(o=>mod(o,12)),s=S.map(r=>mod(r-b,12)),n=a.length,k=s.length,T=[...Array(n+1)].map(()=>Array(k+1).fill(0));
+    for(let i=n-1;i>=0;i--)for(let j=k-1;j>=0;j--)T[i][j]=a[i]===s[j]?T[i+1][j+1]+1:Math.max(T[i+1][j],T[i][j+1]);
+    const hit=Array(n).fill(false);let i=0,j=0;while(i<n&&j<k){if(a[i]===s[j]){hit[i]=true;i++;j++}else if(T[i+1][j]>=T[i][j+1])i++;else j++}
+    const ok=hit.filter(Boolean).length;
+    el.innerHTML='<p class="small">Vergleich: '+L.map((o,q)=>'<span class="mono" style="padding:1px 4px;border-radius:4px;background:'+(hit[q]?'#d8efdc':'#f6d5d1')+'">'+esc(sylName(o))+'</span>').join(" ")+'</p><p class="small '+(ok===n&&k<=n+1?'fb ok':'muted')+'">'+(ok===n&&k<=n+1?"Gesungen und eingetippt stimmen überein.":ok+" von "+n+" Silben gesungen wiedergefunden. Rot: gesungen anders oder gar nicht.")+'</p>'}
+};
 
 /* ---------- Start ---------- */
 buildKb();renderHome();
