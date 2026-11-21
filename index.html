@@ -4871,19 +4871,21 @@ const Sing={mic:null,
       '<p class="small muted">So prüfst du: Silben eintippen, dann „Meine Silben anhören“ direkt nach der Schleife. Klingt es gleich, stimmen die Silben. Mit dem Mikrofon singst du die Phrase allein (Schleife aus); die App zeigt, welche Silben du wirklich gesungen hast, und vergleicht sie mit deinen eingetippten.</p></div>'},
   /* Klaviatur über den ganzen Umfang: sol, (tief) bis sol' (hoch) */
   LO:-5,HI:19,
-  kbd(){const main=[],chr=[];for(let o=this.LO;o<=this.HI;o++)(SYL_MAIN.includes(mod(o,12))?main:chr).push(o);
-    const W=100/main.length,lab=o=>SYL[mod(o,12)]+(o>=12?"'":o<0?",":"");
-    const keys=main.map((o,i)=>'<button type="button" data-so="'+o+'" style="position:absolute;left:'+(i*W)+'%;width:'+W+'%;top:0;bottom:0;border:1px solid var(--line);border-radius:0 0 6px 6px;background:'+(o<0?'#eceae4':o>=12?'#f6f0e2':'#fff')+';'+(mod(o,12)===0?'box-shadow:inset 0 -4px 0 var(--accent,#9a6b14);font-weight:700;':'')+'padding:0 0 8px;display:flex;align-items:flex-end;justify-content:center;font-size:.72rem;color:inherit">'+lab(o)+'</button>').join("")+
-      chr.map(o=>{const i=main.findIndex(m=>m>o);return '<button type="button" data-so="'+o+'" style="position:absolute;left:'+(i*W-W*.32)+'%;width:'+(W*.64)+'%;top:0;height:52%;z-index:2;border:0;border-radius:0 0 4px 4px;background:#3b3a36;color:#fff;font-size:.62rem;padding:0 0 4px;display:flex;align-items:flex-end;justify-content:center">'+SYL[mod(o,12)]+'</button>'}).join("");
-    return '<div style="overflow-x:auto;margin:8px 0"><div class="small muted" style="display:flex;min-width:'+(main.length*21)+'px"><span style="flex:3">tief</span><span style="flex:7;text-align:center">mittel (do bis te)</span><span style="flex:5;text-align:right">hoch</span></div><div id="sylKbd" style="position:relative;height:120px;min-width:'+(main.length*21)+'px;user-select:none;-webkit-user-select:none">'+keys+'</div></div>'},
+  kbd(){const b=this.base();let lo=b+this.LO,hi=b+this.HI;const blk=n=>[1,3,6,8,10].includes(mod(n,12));if(blk(lo))lo--;if(blk(hi))hi++;
+    const whites=[];for(let n=lo;n<=hi;n++)if(!blk(n))whites.push(n);const W=100/whites.length,lab=o=>SYL[mod(o,12)]+(o>=12?"'":o<0?",":"");
+    const style=(o,black)=>{const main=SYL_MAIN.includes(mod(o,12));return (main?'font-weight:700;':'opacity:.75;')+(mod(o,12)===0?'box-shadow:inset 0 -4px 0 var(--accent,#9a6b14);':'')};
+    let h='';whites.forEach((n,i)=>{const o=n-b;h+='<button type="button" data-so="'+o+'" style="position:absolute;left:'+(i*W)+'%;width:'+W+'%;top:0;bottom:0;border:1px solid var(--line);border-radius:0 0 6px 6px;background:#fff;'+style(o)+'padding:0 0 6px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;font-size:.7rem;color:inherit"><span>'+lab(o)+'</span><span style="font-size:.58rem;font-weight:400;opacity:.6">'+TRN[mod(n,12)]+'</span></button>'});
+    for(let n=lo;n<=hi;n++)if(blk(n)){const i=whites.findIndex(w=>w>n),o=n-b;h+='<button type="button" data-so="'+o+'" style="position:absolute;left:'+(i*W-W*.32)+'%;width:'+(W*.64)+'%;top:0;height:55%;z-index:2;border:0;border-radius:0 0 4px 4px;background:#3b3a36;color:#fff;'+style(o)+'font-size:.6rem;padding:0 0 4px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end"><span>'+lab(o)+'</span><span style="font-size:.5rem;font-weight:400;opacity:.7">'+TRN[mod(n,12)]+'</span></button>'}
+    return '<div id="sylKbdWrap" style="overflow-x:auto;margin:8px 0"><div id="sylKbd" style="position:relative;height:120px;min-width:'+(whites.length*22)+'px;user-select:none;-webkit-user-select:none">'+h+'</div><p class="small muted">Echte Klaviatur, do liegt auf '+TRN[mod(b,12)]+' (unterstrichen). Fett: die Mollstufen do re me fa sol le te.</p></div>'},
+  bindKbd(p){const st=$("#trStage");if(!st)return;st.querySelectorAll("[data-so]").forEach(b=>b.onclick=()=>{ac();lastInput=performance.now();const o=+b.dataset.so;this.add(p,o);playSeq([{n:this.base()+o,t:.02,d:.4,v:70}],true);b.style.outline="2px solid var(--accent,#9a6b14)";setTimeout(()=>b.style.outline="",250)})},
   bind(p){const st=$("#trStage");if(!st)return;
-    st.querySelectorAll("[data-so]").forEach(b=>b.onclick=()=>{ac();lastInput=performance.now();const o=+b.dataset.so;this.add(p,o);playSeq([{n:this.base()+o,t:.02,d:.4,v:70}],true);b.style.outline="2px solid var(--accent,#9a6b14)";setTimeout(()=>b.style.outline="",250)});
+    this.bindKbd(p);
     const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=()=>{ac();lastInput=performance.now();fn()}};
     on("sylDel",()=>{this.list(p).pop();saveSettings();this.line(p)});
     on("sylClr",()=>{if(!confirmBtn($("#sylClr")))return;this.P().syl[phKey(p)]=[];saveSettings();this.line(p)});
     on("sylPlay",()=>{const L=this.list(p);if(!L.length)return toast("Erst Silben eintippen");if(Player.audio&&!Player.audio.paused)Player.pause();const t0=.1,b=this.base();playSeq(L.map((o,j)=>({n:b+o,t:t0+j*.42,d:.38,v:70})),true)});
     on("micGo",()=>this.mic?this.micStop():this.micStart(p));
-    const sel=$("#melDo");if(sel)sel.onchange=()=>{this.P().doPc=+sel.value;saveSettings();this.line(p)};
+    const sel=$("#melDo");if(sel)sel.onchange=()=>{this.P().doPc=+sel.value;saveSettings();const w=$("#sylKbdWrap");if(w){w.outerHTML=this.kbd();this.bindKbd(p)}this.line(p)};
     this.line(p);this.micUi()},
   /* Mikrofon: Tonhöhe per Autokorrelation, stabile Töne werden zu Silben */
   async micStart(p){if(Player.audio&&!Player.audio.paused)Player.pause();
