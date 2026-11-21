@@ -4856,24 +4856,29 @@ document.addEventListener("keydown",e=>{if(Mel.tap&&e.code==="Space"&&!/INPUT|TE
 /* ---------- Song-Trainer: Silben eintragen und Singen prüfen ---------- */
 const SYL=["do","ra","re","me","mi","fa","fi","sol","le","la","te","ti"],SYL_MAIN=[0,2,3,5,7,8,10],SYL_CHR=[1,4,6,9,11];
 const sylName=o=>SYL[mod(o,12)]+(o>=12?"'":o<0?",":"");
-const Sing={oct:0,mic:null,
+const Sing={mic:null,
   P(){const P=Mel.P();P.syl=P.syl||{};if(typeof P.doPc!=="number")P.doPc=7;return P},
   base(){const pc=this.P().doPc;let b=48+pc;if(b<53)b+=12;return b},
   list(p){const P=this.P(),k=phKey(p);return P.syl[k]=P.syl[k]||[]},
-  add(p,pc){const L=this.list(p);let o=pc;if(L.length){const prev=L[L.length-1];o=pc+12*Math.round((prev-pc)/12)}else if(pc>7)o=pc-12;o+=12*this.oct;this.oct=0;L.push(o);saveSettings();this.line(p)},
-  line(p){const el=$("#sylLine");if(!el)return;const L=this.list(p);el.textContent=L.length?L.map(sylName).join(" "):"noch leer";const oc=$("#sylOct");if(oc)oc.textContent=this.oct>0?"nächster Ton: Oktave höher":this.oct<0?"nächster Ton: Oktave tiefer":"";this.compare(p)},
+  add(p,o){const L=this.list(p);L.push(o);saveSettings();this.line(p)},
+  line(p){const el=$("#sylLine");if(!el)return;const L=this.list(p);el.textContent=L.length?L.map(sylName).join(" "):"noch leer";this.compare(p)},
   html(p){const P=this.P();
     return '<div class="card" style="margin:10px 0"><div class="label">Deine Silben</div><p class="small">do = <select id="melDo" aria-label="do">'+TRN.map((t,i)=>'<option value="'+i+'"'+(i===P.doPc?" selected":"")+'>'+t+'</option>').join("")+'</select> · do-basiertes Moll: do re me fa sol le te. do ist der Grundton der Molltonart deiner Aufnahme.</p>'+
-      '<p class="mono" id="sylLine" style="font-size:1.15rem"></p><p class="small muted" id="sylOct"></p>'+
-      '<div class="row">'+SYL_MAIN.map(i=>'<button class="btn" data-syl="'+i+'" type="button">'+SYL[i]+'</button>').join("")+'</div>'+
-      '<div class="row">'+SYL_CHR.map(i=>'<button class="btn small" data-syl="'+i+'" type="button">'+SYL[i]+'</button>').join("")+'<button class="btn small" id="sylDn" type="button">Oktave ↓</button><button class="btn small" id="sylUp" type="button">Oktave ↑</button><button class="btn small" id="sylDel" type="button">⌫</button><button class="linkbtn" id="sylClr" type="button">Leeren</button></div>'+
+      '<p class="mono" id="sylLine" style="font-size:1.15rem"></p>'+this.kbd()+
+      '<div class="row"><button class="btn small" id="sylDel" type="button">⌫ Letzte löschen</button><button class="linkbtn" id="sylClr" type="button">Leeren</button></div>'+
       '<div class="row"><button class="btn" id="sylPlay" type="button">Meine Silben anhören</button><button class="btn" id="micGo" type="button">'+(this.mic?"Mikrofon aus":"Singen prüfen (Mikrofon)")+'</button></div>'+
       '<div id="micBox"></div>'+
       '<p class="small muted">So prüfst du: Silben eintippen, dann „Meine Silben anhören“ direkt nach der Schleife. Klingt es gleich, stimmen die Silben. Mit dem Mikrofon singst du die Phrase allein (Schleife aus); die App zeigt, welche Silben du wirklich gesungen hast, und vergleicht sie mit deinen eingetippten.</p></div>'},
+  /* Klaviatur über den ganzen Umfang: sol, (tief) bis sol' (hoch) */
+  LO:-5,HI:19,
+  kbd(){const main=[],chr=[];for(let o=this.LO;o<=this.HI;o++)(SYL_MAIN.includes(mod(o,12))?main:chr).push(o);
+    const W=100/main.length,lab=o=>SYL[mod(o,12)]+(o>=12?"'":o<0?",":"");
+    const keys=main.map((o,i)=>'<button type="button" data-so="'+o+'" style="position:absolute;left:'+(i*W)+'%;width:'+W+'%;top:0;bottom:0;border:1px solid var(--line);border-radius:0 0 6px 6px;background:'+(o<0?'#eceae4':o>=12?'#f6f0e2':'#fff')+';'+(mod(o,12)===0?'box-shadow:inset 0 -4px 0 var(--accent,#9a6b14);font-weight:700;':'')+'padding:0 0 8px;display:flex;align-items:flex-end;justify-content:center;font-size:.72rem;color:inherit">'+lab(o)+'</button>').join("")+
+      chr.map(o=>{const i=main.findIndex(m=>m>o);return '<button type="button" data-so="'+o+'" style="position:absolute;left:'+(i*W-W*.32)+'%;width:'+(W*.64)+'%;top:0;height:52%;z-index:2;border:0;border-radius:0 0 4px 4px;background:#3b3a36;color:#fff;font-size:.62rem;padding:0 0 4px;display:flex;align-items:flex-end;justify-content:center">'+SYL[mod(o,12)]+'</button>'}).join("");
+    return '<div style="overflow-x:auto;margin:8px 0"><div class="small muted" style="display:flex;min-width:'+(main.length*21)+'px"><span style="flex:3">tief</span><span style="flex:7;text-align:center">mittel (do bis te)</span><span style="flex:5;text-align:right">hoch</span></div><div id="sylKbd" style="position:relative;height:120px;min-width:'+(main.length*21)+'px;user-select:none;-webkit-user-select:none">'+keys+'</div></div>'},
   bind(p){const st=$("#trStage");if(!st)return;
-    st.querySelectorAll("[data-syl]").forEach(b=>b.onclick=()=>{this.add(p,+b.dataset.syl);playSeq([{n:this.base()+this.list(p).slice(-1)[0],t:.02,d:.4,v:70}],true)});
+    st.querySelectorAll("[data-so]").forEach(b=>b.onclick=()=>{ac();lastInput=performance.now();const o=+b.dataset.so;this.add(p,o);playSeq([{n:this.base()+o,t:.02,d:.4,v:70}],true);b.style.outline="2px solid var(--accent,#9a6b14)";setTimeout(()=>b.style.outline="",250)});
     const on=(id,fn)=>{const e=document.getElementById(id);if(e)e.onclick=()=>{ac();lastInput=performance.now();fn()}};
-    on("sylUp",()=>{this.oct=Math.min(1,this.oct+1);this.line(p)});on("sylDn",()=>{this.oct=Math.max(-1,this.oct-1);this.line(p)});
     on("sylDel",()=>{this.list(p).pop();saveSettings();this.line(p)});
     on("sylClr",()=>{if(!confirmBtn($("#sylClr")))return;this.P().syl[phKey(p)]=[];saveSettings();this.line(p)});
     on("sylPlay",()=>{const L=this.list(p);if(!L.length)return toast("Erst Silben eintippen");if(Player.audio&&!Player.audio.paused)Player.pause();const t0=.1,b=this.base();playSeq(L.map((o,j)=>({n:b+o,t:t0+j*.42,d:.38,v:70})),true)});
