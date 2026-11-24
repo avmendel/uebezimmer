@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd">
+<channel>
+  <title>Hörgang</title>
+  <link>https://avmendel.github.io/uebezimmer/</link>
+  <language>de</language>
+  <description>Gehörtraining zum Gehen: hören, innerlich antworten, Lösung hören. Relative Solmisation, Bass und Funktionen, Autumn Leaves.</description>
+  <itunes:author>Übezimmer</itunes:author>
+  <itunes:type>serial</itunes:type>
+  <itunes:explicit>false</itunes:explicit>
+  <itunes:block>Yes</itunes:block>
+  <itunes:image href="https://avmendel.github.io/uebezimmer/hoergang/cover.jpg"/>
+  <itunes:category text="Music"/>
+  <item>
+    <title>Hörgang 1</title>
+    <description>Bass und Funktionen (Stufe 1), do halten (Stufe 2), Melodien (Stufe 2), Stufen (Stufe 3)</description>
+    <itunes:episode>1</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:39</itunes:duration>
+    <guid isPermaLink="false">hoergang-01-v1</guid>
+    <pubDate>Mon, 17 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-01.mp3" length="4193928" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 2</title>
+    <description>Bass und Funktionen (Stufe 1), Melodien (Stufe 2), Autumn Leaves (Stufe 1), Stufen (Stufe 3)</description>
+    <itunes:episode>2</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:12</itunes:duration>
+    <guid isPermaLink="false">hoergang-02-v1</guid>
+    <pubDate>Tue, 18 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-02.mp3" length="4032335" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 3</title>
+    <description>Bass und Funktionen (Stufe 1), do halten (Stufe 2), Melodien (Stufe 2), Stufen (Stufe 3)</description>
+    <itunes:episode>3</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:38</itunes:duration>
+    <guid isPermaLink="false">hoergang-03-v1</guid>
+    <pubDate>Wed, 19 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-03.mp3" length="4189696" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 4</title>
+    <description>Autumn Leaves (Stufe 1), Melodien (Stufe 2), do halten (Stufe 2), Bass und Funktionen (Stufe 1)</description>
+    <itunes:episode>4</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:46</itunes:duration>
+    <guid isPermaLink="false">hoergang-04-v1</guid>
+    <pubDate>Thu, 20 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-04.mp3" length="4234523" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 5</title>
+    <description>do halten (Stufe 3), Stufen (Stufe 4), Bass und Funktionen (Stufe 2), Melodien (Stufe 3)</description>
+    <itunes:episode>5</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:48</itunes:duration>
+    <guid isPermaLink="false">hoergang-05-v1</guid>
+    <pubDate>Fri, 21 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-05.mp3" length="4246434" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 6</title>
+    <description>Bass und Funktionen (Stufe 2), Stufen (Stufe 4), Melodien (Stufe 3), Autumn Leaves (Stufe 2)</description>
+    <itunes:episode>6</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:43</itunes:duration>
+    <guid isPermaLink="false">hoergang-06-v1</guid>
+    <pubDate>Sat, 22 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-06.mp3" length="4216498" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 7</title>
+    <description>Bass und Funktionen (Stufe 2), Stufen (Stufe 5), do halten (Stufe 3), Melodien (Stufe 3)</description>
+    <itunes:episode>7</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:38</itunes:duration>
+    <guid isPermaLink="false">hoergang-07-v1</guid>
+    <pubDate>Sun, 23 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-07.mp3" length="4189696" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 8</title>
+    <description>Autumn Leaves (Stufe 2), do halten (Stufe 3), Melodien (Stufe 3), Bass und Funktionen (Stufe 2)</description>
+    <itunes:episode>8</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:50</itunes:duration>
+    <guid isPermaLink="false">hoergang-08-v1</guid>
+    <pubDate>Mon, 24 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-08.mp3" length="4262265" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 9</title>
+    <description>do halten (Stufe 4), Stufen (Stufe 5), Melodien (Stufe 4), Bass und Funktionen (Stufe 3)</description>
+    <itunes:episode>9</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>11:04</itunes:duration>
+    <guid isPermaLink="false">hoergang-09-v1</guid>
+    <pubDate>Tue, 25 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-09.mp3" length="3984217" type="audio/mpeg"/>
+  </item>
+  <item>
+    <title>Hörgang 10</title>
+    <description>Bass und Funktionen (Stufe 3), Stufen (Stufe 6), Melodien (Stufe 4), Autumn Leaves (Stufe 3)</description>
+    <itunes:episode>10</itunes:episode>
+    <itunes:episodeType>full</itunes:episodeType>
+    <itunes:duration>12:30</itunes:duration>
+    <guid isPermaLink="false">hoergang-10-v1</guid>
+    <pubDate>Wed, 26 Aug 2026 06:00:00 +0000</pubDate>
+    <enclosure url="https://avmendel.github.io/uebezimmer/hoergang/hoergang-10.mp3" length="4502855" type="audio/mpeg"/>
+  </item>
+</channel>
+</rss>
