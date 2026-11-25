@@ -477,11 +477,12 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
     </div>
     <div class="card">
       <div class="label">Hörplayer</div>
-      <p class="muted small">Eigene Audiodateien laden, Stellen markieren, in Schleife und langsamer hören. Die Dateien bleiben auf deinem Gerät, gespeichert werden nur die Markierungen.</p>
+      <p class="muted small">Eigene Audiodateien laden, Stellen markieren, in Schleife und langsamer hören. Die Dateien bleiben auf deinem Gerät: Die App merkt sich geöffnete Dateien hier im Browser und lädt sie beim nächsten Start selbst. In den Abgleich gehen nur die Markierungen.</p>
       <div class="row">
         <label class="btn" for="plFile">Dateien öffnen</label><input type="file" id="plFile" accept="audio/*,.mp3,.m4a,.aac,.wav" multiple hidden>
         <button class="btn" id="plFolder" type="button" hidden>Aus dem Übezimmer-Ordner</button>
         <select id="plList" aria-label="Datei"></select>
+        <button class="linkbtn small" id="plStored" type="button" hidden></button>
       </div>
       <div class="row" style="gap:12px">
         <button class="btn primary" id="plPlay" type="button">Abspielen</button>
@@ -4446,7 +4447,12 @@ const Player={files:[],cur:null,audio:null,url:null,a:null,b:null,loop:true,raf:
   el(){if(!this.audio){this.audio=new Audio();this.audio.preservesPitch=true;this.audio.mozPreservesPitch=true;this.audio.webkitPreservesPitch=true;
       this.audio.addEventListener("ended",()=>{$("#plPlay").textContent="Abspielen"});this.audio.addEventListener("error",()=>{$("#plInfo").textContent="Die Datei lässt sich hier nicht abspielen. Geschützte Apple-Music-Titel gehen nicht, nur eigene oder abgeglichene Dateien."})}return this.audio},
   key(f){return (f.name+"|"+f.size).replace(/[^\w.|-]+/g,"_").slice(0,180)},
-  add(list){for(const f of list){if(!this.files.some(x=>x.name===f.name&&x.size===f.size))this.files.push(f)}this.renderList();if(!this.cur&&this.files.length)this.open(this.files[0]);Song.ctl();if(active==="player")setTimeout(()=>HR.render(),300)},
+  add(list,stored){for(const f of list){if(!this.files.some(x=>x.name===f.name&&x.size===f.size)){this.files.push(f);if(!stored)IDB.put("files","pl:"+this.key(f),{name:f.name,type:f.type,blob:f})}}this.renderList();this.storeInfo();if(!this.cur&&this.files.length)this.open(this.files[0]);Song.ctl();if(active==="player")setTimeout(()=>HR.render(),300)},
+  async restore(){if(!IDB.db)await IDB.open();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+    const L=(await IDB.all("files")).filter(([k,v])=>String(k).startsWith("pl:")&&v&&v.blob).map(([k,v])=>new File([v.blob],v.name,{type:v.type||v.blob.type||""}));
+    if(L.length)this.add(L,true);else this.storeInfo()},
+  storeInfo(){const el=$("#plStored");if(!el)return;el.hidden=!this.files.length;el.textContent="Gespeichert: "+this.files.length+" Datei"+(this.files.length===1?"":"en")+" · Liste leeren"},
+  async clearStored(){for(const [k] of await IDB.all("files"))if(String(k).startsWith("pl:"))IDB.del("files",k);this.pause();this.files=[];this.cur=null;this.renderList();this.storeInfo();toast("Gespeicherte Dateien entfernt");if(active==="player")HR.render()},
   findTrack(re,part){return this.files.find(f=>re.test(f.name)&&f.name.toLowerCase().includes(part.toLowerCase()))||null},
   renderList(){$("#plList").innerHTML=this.files.map((f,i)=>`<option value="${i}" ${f===this.cur?"selected":""}>${esc(f.name)}</option>`).join("")},
   async open(f){if(this.cur===f&&this.url)return;const a=this.el();a.pause();if(this.url)URL.revokeObjectURL(this.url);this.url=URL.createObjectURL(f);a.src=this.url;this.cur=f;this.a=this.b=null;this.range=null;this.renderList();
@@ -4469,6 +4475,8 @@ const Player={files:[],cur:null,audio:null,url:null,a:null,b:null,loop:true,raf:
 };
 $("#plFile").onchange=e=>{Player.add([...e.target.files]);e.target.value=""};
 $("#plList").onchange=e=>Player.open(Player.files[+e.target.value]);
+$("#plStored").onclick=e=>{const b=e.currentTarget;if(b.dataset.sure){delete b.dataset.sure;Player.clearStored();return}b.dataset.sure=1;b.textContent="Wirklich alle Dateien aus der Liste entfernen? Nochmal tippen.";setTimeout(()=>{delete b.dataset.sure;Player.storeInfo()},4000)};
+setTimeout(()=>Player.restore(),0);
 $("#plPlay").onclick=()=>{ac();const el=Player.el();if(el.paused)Player.play();else Player.pause()};
 $("#plBack").onclick=()=>{const el=Player.el();el.currentTime=Math.max(0,el.currentTime-5);Player.ui()};
 $("#plSeek").oninput=e=>{const el=Player.el();if(el.duration)el.currentTime=el.duration*e.target.value/1000;Player.ui()};
