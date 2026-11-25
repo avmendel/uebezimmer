@@ -211,6 +211,30 @@ details summary{cursor:pointer;color:var(--muted);font-size:.9rem}
 .seg button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;font-size:.82rem}
 .seg button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent)}
 .form{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px}
+.hmap{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.hmap span{min-width:30px;padding:2px 4px;border-radius:6px;border:1px solid var(--line);font-family:var(--mono);font-size:.72rem;text-align:center;background:var(--surface)}
+.hmap span.ok{background:var(--good-soft);border-color:var(--good)}
+.hmap span.no{background:var(--bad-soft);border-color:var(--bad)}
+.prog{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.prog .box{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.prog .big{font-family:var(--display);font-size:1.5rem;line-height:1.1}
+.spark{display:flex;align-items:flex-end;gap:3px;height:46px}
+.spark i{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.spark i.cur{opacity:1;background:var(--ink)}
+.sparklbl{display:flex;gap:3px;font-family:var(--mono);font-size:.6rem;color:var(--muted)}
+.sparklbl span{flex:1;text-align:center}
+.hrbars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;width:100%;max-width:640px;margin:0 auto}
+.hrbar{border:1px solid var(--line);border-radius:8px;padding:4px 6px;min-height:58px;display:flex;flex-direction:column;gap:2px;background:var(--surface);text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.hrbar .n{font-family:var(--mono);font-size:.62rem;color:var(--muted)}
+.hrbar .c{font-family:var(--display);font-size:1rem}
+.hrbar .r{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.hrbar.sel{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.hrbar.now{box-shadow:inset 0 -4px 0 var(--accent)}
+.hrbar.ok{background:var(--good-soft)}.hrbar.no{background:var(--bad-soft)}
+.hrsteps{display:flex;gap:4px;flex-wrap:wrap}
+.hrsteps button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:4px 10px;font-size:.82rem}
+.hrsteps button[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent)}
+.hrsteps button.done{color:var(--good)}
 .cpsheet{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;width:100%;max-width:640px;margin:6px auto}
 .cpbar{border:1px solid var(--line);border-radius:8px;padding:4px 6px;min-height:52px;display:flex;flex-direction:column;gap:2px;background:var(--surface);text-align:left}
 .cpbar .n{font-family:var(--mono);font-size:.62rem;color:var(--muted)}
@@ -289,7 +313,7 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
     <button class="tab" role="tab" data-p="song">Song</button>
     <button class="tab" role="tab" data-p="player">Hörplayer</button>
     <button class="tab" role="tab" data-p="rec">Aufnahme</button>
-    <button class="tab" role="tab" data-p="log">Protokoll</button>
+    <button class="tab" role="tab" data-p="log">Fortschritt</button>
   </nav>
 
   <section class="panel" id="p-home">
@@ -444,6 +468,13 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
   </section>
 
   <section class="panel" id="p-player" hidden>
+    <div class="card" id="hrCard">
+      <div class="label">Heraushören an echter Musik</div>
+      <p class="small">Ein Song nach dem anderen, sortiert von leicht nach schwer. Pro Stelle in fünf Schritten: do finden, Bass, Akkorde, Melodie, dann vergleichen. Du hörst selbst heraus, die App spielt deine Lösung zur Aufnahme mit, damit du hörst, ob sie passt.</p>
+      <div class="row"><label class="small">Song <select id="hrSong"></select></label></div>
+      <p class="small muted" id="hrInfo"></p>
+      <div id="hrBody"></div>
+    </div>
     <div class="card">
       <div class="label">Hörplayer</div>
       <p class="muted small">Eigene Audiodateien laden, Stellen markieren, in Schleife und langsamer hören. Die Dateien bleiben auf deinem Gerät, gespeichert werden nur die Markierungen.</p>
@@ -503,6 +534,11 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
   </section>
 
   <section class="panel" id="p-log" hidden>
+    <div class="card">
+      <div class="label">Fortschritt</div>
+      <p class="small muted" id="pgSub">Wie sich deine Werte über die Wochen entwickeln.</p>
+      <div class="prog" id="pgBox"></div>
+    </div>
     <div class="card">
       <div class="label">Übetage</div>
       <div class="tablewrap"><table><thead><tr><th>Datum</th><th>Min geübt</th><th>Hören</th><th>Klavier</th><th>Aufn.</th></tr></thead><tbody id="logDays"></tbody></table></div>
@@ -2858,7 +2894,7 @@ function say(t,force,onend){let done=false;const f=()=>{if(!done){done=true;if(o
     if(ss.speaking||ss.pending){ss.cancel();setTimeout(()=>{try{ss.speak(u)}catch(e){f()}},150)}else{ss.cancel();ss.speak(u)}if(ss.paused)ss.resume()}catch(e){f()}}
 
 /* ---------- Einstellungen ---------- */
-const S={trainer:{},lesson:null,songView:"both",syncs:[],level:{},hist:{},keyMode:"rand",voice:true,dur:30,apOn:false,apClasses:[0,4,9],apHist:{},techBpm:{},xp:0,freezes:0,qualCount:0,frozen:[],repaired:[],pauses:[],best:{streak:0,earLen:0},rep:null,qKey:null,qPos:0,qStart:0,qDate:null,shell:null,comp:null};
+const S={real:{},realSel:null,trainer:{},lesson:null,songView:"both",syncs:[],level:{},hist:{},keyMode:"rand",voice:true,dur:30,apOn:false,apClasses:[0,4,9],apHist:{},techBpm:{},xp:0,freezes:0,qualCount:0,frozen:[],repaired:[],pauses:[],best:{streak:0,earLen:0},rep:null,qKey:null,qPos:0,qStart:0,qDate:null,shell:null,comp:null};
 let settingsTimer=null;
 function saveSettings(){clearTimeout(settingsTimer);settingsTimer=setTimeout(()=>Store.putSettings(JSON.parse(JSON.stringify(S))),1500)}
 
@@ -3061,7 +3097,7 @@ function onMidi(e){
 
 /* ---------- Eingabe ---------- */
 const held=new Map();let active="home",lastInput=0;
-function noteOn(n,v,ts){ts=ts||performance.now();lastInput=performance.now();held.set(n,v);kbSet(n,"on",true);Rec.ev(ts,9,n,v);if(active==="song"&&Trainer.st)Trainer.note(n,true);if(active==="song"&&Licks.st)Licks.note(n,true);const M=Host.cur;if(!M||!M.on)return;if(!M.timed&&ts<busyUntil)return;M.on(n,v,ts)}
+function noteOn(n,v,ts){ts=ts||performance.now();lastInput=performance.now();held.set(n,v);kbSet(n,"on",true);Rec.ev(ts,9,n,v);if(active==="player"&&HR.sel)HR.note(n);if(active==="song"&&Trainer.st)Trainer.note(n,true);if(active==="song"&&Licks.st)Licks.note(n,true);const M=Host.cur;if(!M||!M.on)return;if(!M.timed&&ts<busyUntil)return;M.on(n,v,ts)}
 function noteOff(n,ts){ts=ts||performance.now();held.delete(n);kbSet(n,"on",false);Rec.ev(ts,8,n,0);if(active==="song"&&Trainer.st)Trainer.note(n,false);const M=Host.cur;if(M&&M.off)M.off(n,ts)}
 
 /* ---------- Klaviatur ---------- */
@@ -3599,21 +3635,25 @@ const hx=s=>{const a=[];for(let i=0;i<s.length;i+=2)a.push(parseInt(s.substr(i,2
 const HL={cache:{},st:null,
   data(n){if(!HANON_DATA[n])return null;if(!this.cache[n]){const d=HANON_DATA[n];this.cache[n]={r:hx(d.r),l:hx(d.l),rf:d.rf,lf:d.lf}}return this.cache[n]},
   stage(n){const H=hanonInit();H.learn=H.learn||{};return H.learn[n]===undefined?0:H.learn[n]},
-  learning(n){return !!this.data(n)&&this.stage(n)<HL_STAGES.length},
+  learning(n){return !!(this.st&&this.st.part&&this.st.n===n)},
+  /* Teilschleife: Problemtakte a..b beide Hände, ohne Tempo, zweimal fehlerfrei */
+  part(n,a,b){const D=this.data(n);if(!D)return;const L=Math.ceil(D.r.length/16);a=Math.max(0,a);b=Math.min(L-1,b);const H=hanonInit();H.partSt={n,a,b};saveSettings();
+    this.st={n,s:4,part:[a,b],off:a*16,seq:this.seq(n,4).slice(a*16,(b+1)*16),pos:0,got:[],errs:0,errAt:-1,clean:0,win:-1,rep:0};Host.mountCur()},
   seq(n,s){const D=this.data(n),S=HL_STAGES[s];const len=S.fig?8:D.r.length;const out=[];for(let i=0;i<len;i++)out.push(S.h==="r"?[D.r[i]]:S.h==="l"?[D.l[i]]:[D.r[i],D.l[i]]);return out},
   begin(n){const s=this.stage(n);this.st={n,s,seq:this.seq(n,s),pos:0,got:[],errs:0,errAt:-1,clean:0,win:-1,rep:0};this.draw(true)},
   winOf(p){return Math.floor(p/16)},
   async draw(full){const st=this.st;if(!st)return;const S=HL_STAGES[st.s],D=this.data(st.n);
     const head=$("#hlHead"),info=$("#hlInfo"),fb=$("#hlFb");if(!head)return;
-    head.textContent="Lernen, Schritt "+(st.s+1)+" von "+HL_STAGES.length+": "+S.t;
-    info.textContent=S.fig?"Die ersten acht Töne, bis sie sicher sitzen. Fingersatz beachten. Dreimal fehlerfrei hintereinander: "+st.clean+" von 3":"Ton "+st.pos+" von "+st.seq.length+" · Fehler: "+st.errs+" (erlaubt: 3). Langsam, Tempo egal.";
-    const w=S.fig?0:this.winOf(st.pos);
+    const P0=(st.off||0)+st.pos;
+    head.textContent=st.part?"Takt "+(st.part[0]+1)+"–"+(st.part[1]+1)+" einzeln, beide Hände":"Lernen, Schritt "+(st.s+1)+" von "+HL_STAGES.length+": "+S.t;
+    info.textContent=st.part?"Ohne Tempo, Ton für Ton. Zweimal ohne Fehler hintereinander: "+st.clean+" von 2. Dann geht es zurück ins Ganze, im Takt.":S.fig?"Die ersten acht Töne, bis sie sicher sitzen. Fingersatz beachten. Dreimal fehlerfrei hintereinander: "+st.clean+" von 3":"Ton "+st.pos+" von "+st.seq.length+" · Fehler: "+st.errs+". Langsam, Tempo egal.";
+    const w=S.fig?0:this.winOf(P0);
     if(full||w!==st.win){st.win=w;const a=w*16,b=Math.min(D.r.length,a+(S.fig?8:32));
       const mk=(arr,fs)=>{const bars=[];for(let i=a;i<b;i+=16){const bar=[];for(let j=i;j<Math.min(b,i+16);j++){const last=j===D.r.length-1;bar.push({n:[arr[j]],d:last?8:1,f:fs[j]})}bars.push(bar)}return bars};
       const clefOf=arr=>{const x=arr.slice(a,b);return x.reduce((q,y)=>q+y,0)/x.length>=59?"treble":"bass"};
       const voices=S.h==="r"?[{clef:clefOf(D.r),bars:mk(D.r,D.rf)}]:S.h==="l"?[{clef:clefOf(D.l),bars:mk(D.l,D.lf)}]:[{clef:clefOf(D.r),bars:mk(D.r,D.rf)},{clef:clefOf(D.l),bars:mk(D.l,D.lf)}];
       await drawAbc($("#hlSheet"),abcDoc({meter:"2/4",len:"1/16",beat:4,voices}),620)}
-    const k=S.fig?st.pos:st.pos-w*16,m=Math.floor(k/16),i=k%16;
+    const k=S.fig?st.pos:P0-w*16,m=Math.floor(k/16),i=k%16;
     markNote($("#hlSheet"),"sg-cur",st.pos<st.seq.length?".abcjs-note.abcjs-mm"+m+".abcjs-n"+i:null);
     if(fb){fb.className="fb "+(st.fbc||"");fb.textContent=st.fb||""}},
   note(n){const st=this.st;if(!st)return;lastInput=performance.now();const exp=st.seq[st.pos];if(!exp)return;
@@ -3621,6 +3661,8 @@ const HL={cache:{},st:null,
     else{if(st.errAt!==st.pos){st.errAt=st.pos;st.errs++}st.fb="Nicht "+TRN[mod(n,12)];st.fbc="no";bad()}
     if(st.pos>=st.seq.length)return this.done();this.draw()},
   done(){const st=this.st,S=HL_STAGES[st.s],H=hanonInit();
+    if(st.part){if(st.errs===0)st.clean++;else st.clean=0;if(st.clean<2){const ok=st.errs===0;st.pos=0;st.errs=0;st.errAt=-1;st.fb=ok?"Fehlerfrei. Noch einmal.":"Noch einmal, ohne Fehler";st.fbc=ok?"ok":"no";if(ok)good();return this.draw()}
+      good();bonus(10);H.partSt=null;saveSettings();toast("Takte sitzen. Zurück ins Ganze, im Takt.");say("Gut. Jetzt wieder das Ganze im Takt.");this.st=null;Host.mountCur();return}
     if(S.fig){if(st.errs===0)st.clean++;else st.clean=0;if(st.clean<3){const ok=st.errs===0;st.pos=0;st.errs=0;st.errAt=-1;st.fb=ok?"Fehlerfrei":"Noch einmal, ohne Fehler";st.fbc=ok?"ok":"no";if(ok)good();return this.draw()}}
     else if(st.errs>3){st.fb=st.errs+" Fehler. Noch einmal von vorn, langsamer.";st.fbc="no";st.pos=0;st.errs=0;st.errAt=-1;st.win=-1;return this.draw(true)}
     good();bonus(15);H.learn[st.n]=st.s+1;saveSettings();
@@ -3639,21 +3681,29 @@ const Hanon={timed:true,running:false,buf:[],okRun:0,failRun:0,good:0,which:null
   H(){return hanonInit()},
   review(){const d=Object.keys(this.H().done).map(Number).filter(n=>n!==this.H().cur);if(!d.length)return null;return d.sort((a,b)=>(this.H().done[a]||"").localeCompare(this.H().done[b]||""))[0]},
   num(){return this.which||this.H().cur},
-  bpm(){const n=this.num(),H=this.H();return this.which&&this.which!==H.cur?hanonTarget(n):(H.bpm[n]||Math.max(56,hanonTarget(n)-20))},
+  bpm(){const n=this.num(),H=this.H();return this.which&&this.which!==H.cur?hanonTarget(n):(H.bpm[n]||52)},
+  barErr:{},barSeen:{},
+  drawMap(){const el=$("#hMap"),row=$("#hPartRow"),L=this.seqLen();if(!el||!L)return;const nb=Math.ceil(L/16),E=this.barErr,seen=this.barSeen;
+    if(!Object.keys(seen).length){el.innerHTML="";if(row)row.innerHTML="";return}
+    el.innerHTML='<span class="small muted" style="border:0;background:none">Takte:</span>'+[...Array(nb)].map((_,b)=>'<span class="'+(!seen[b]?"":E[b]?"no":"ok")+'" title="Takt '+(b+1)+'">'+(b+1)+(E[b]?" ·"+E[b]:"")+'</span>').join("");
+    let best=null;for(let b=0;b<nb;b++){const v=(E[b]||0)+(E[b+1]||0);if(v>=2&&(!best||v>best.v))best={a:b,b:Math.min(nb-1,b+1),v}}
+    if(row)row.innerHTML=best?'<button class="btn" id="hPart" type="button">Takt '+(best.a+1)+'–'+(best.b+1)+' einzeln üben</button>':"";
+    const bt=$("#hPart");if(bt)bt.onclick=()=>{this.stop();HL.part(this.num(),best.a,best.b)}},
   mount(el){const H=this.H(),n=this.num(),rv=this.review(),isRev=n!==H.cur;
+    if(!isRev&&!HL.st&&H.partSt&&H.partSt.n===n){const p=H.partSt,D=HL.data(n);if(D){HL.st={n,s:4,part:[p.a,p.b],off:p.a*16,seq:HL.seq(n,4).slice(p.a*16,(p.b+1)*16),pos:0,got:[],errs:0,errAt:-1,clean:0,win:-1,rep:0}}}
     if(!isRev&&HL.learning(n)){this.stop();el.innerHTML=`<div class="stage"><div class="keyname">Hanon Nr. ${n}</div><div class="small" id="hlHead"></div><div class="sheet" id="hlSheet"></div><p class="small muted" id="hlInfo"></p><div class="fb" id="hlFb"></div>
-      <p class="small muted">Erst die Noten, dann das Tempo: Figur rechts, Figur links, ganze Übung rechts, links, dann zusammen. Die App prüft jeden Ton, das Tempo ist egal.</p></div>
-      <div class="row"><button class="btn" id="hlDemo" type="button">Vorspielen</button><button class="btn" id="hlRestart" type="button">Von vorn</button><button class="linkbtn" id="hlSkip" type="button">Kann ich schon</button></div>`;
-      $("#hlDemo").onclick=()=>HL.demo();$("#hlRestart").onclick=()=>HL.begin(n);$("#hlSkip").onclick=()=>{if(confirmBtn($("#hlSkip")))HL.skip()};
-      if(!HL.st||HL.st.n!==n)HL.begin(n);else HL.draw(true);return}
+      <p class="small muted">Nur die Takte, die eben gehakt haben. Danach spielst du wieder die ganze Übung im Takt.</p></div>
+      <div class="row"><button class="btn" id="hlDemo" type="button">Vorspielen</button><button class="btn" id="hlBack" type="button">Zurück zum Ganzen</button></div>`;
+      $("#hlDemo").onclick=()=>HL.demo();$("#hlBack").onclick=()=>{H.partSt=null;saveSettings();HL.st=null;Host.mountCur()};
+      HL.draw(true);return}
     el.innerHTML=`<div class="stage"><div class="keyname">Hanon Nr. ${n}${isRev?" · Wiederholung":""}</div>
-    <p class="small">Aus deinem Heft (gemeinfrei, kostenlos bei IMSLP). Beide Hände, Sechzehntel zum Metronom, ohne Pause wiederholen. Locker aus den Fingern, Handgelenk ruhig, nicht drücken. Wird es eng in Hand oder Unterarm: Pause.</p>
+    <p class="small">Gleich das Ganze: beide Hände, auf- und abwärts, langsam zum Metronom. Unter den Noten siehst du danach, welche Takte haken. Die übst du kurz einzeln und gehst dann zurück ins Ganze. Locker aus den Fingern, Handgelenk ruhig. Wird es eng in Hand oder Unterarm: Pause.</p>
     <div class="stats"><div class="stat"><span class="label">Tempo</span><b id="hBpm">${this.bpm()}</b></div><div class="stat"><span class="label">Ziel</span><b>${hanonTarget(n)}</b></div><div class="stat"><span class="label">Timing ±</span><b id="hTim">–</b></div><div class="stat"><span class="label">Anschlag ±</span><b id="hVel">–</b></div></div>
-    <div class="fb" id="hFb"></div>${HANON_DATA[n]?'<div class="sheet" id="hSheet"></div><p class="small muted">Die Noten laufen mit, der aktuelle Ton ist markiert. Die App prüft Timing, Anschlag und die richtigen Töne.</p>':'<p class="small muted">Noten ab Nr. 21 kommen aus deinem Heft.</p>'}
+    <div class="fb" id="hFb"></div><div class="hmap" id="hMap"></div><div class="row" id="hPartRow" style="justify-content:center"></div>${HANON_DATA[n]?'<div class="sheet" id="hSheet"></div><p class="small muted">Die Noten laufen mit, der aktuelle Ton ist markiert. Die App prüft Timing, Anschlag und die richtigen Töne.</p>':'<p class="small muted">Noten ab Nr. 21 kommen aus deinem Heft.</p>'}
     <p class="small muted">Geschafft: ${Object.keys(H.done).length} von 60 · aktuell Nr. ${H.cur}. Nach dreimal gleichmäßig hintereinander stoppt das Metronom und die nächste Runde startet etwas schneller. Während du spielst, ändert sich das Tempo nie. Im Zieltempo gilt die Nummer als geschafft und die nächste kommt.</p></div>
     <div class="row"><button class="btn primary" id="hGo" type="button">${this.running?"Stoppen":"Starten"}</button>${rv&&!isRev?`<button class="btn" id="hRev" type="button">Wiederholung: Nr. ${rv}</button>`:""}${isRev?`<button class="btn" id="hCur" type="button">Zurück zu Nr. ${H.cur}</button>`:""}</div>`;
     $("#hGo").onclick=()=>this.running?this.stop():this.start();
-    this.pos=0;this.win=-1;this.draw();
+    this.pos=0;this.win=-1;this.draw();this.drawMap();
     if($("#hRev"))$("#hRev").onclick=()=>{this.stop();this.which=rv;this.mount(el)};
     if($("#hCur"))$("#hCur").onclick=()=>{this.stop();this.which=null;this.mount(el)}},
   pos:0,got:[],errs:0,errAt:-1,win:-1,
@@ -3665,13 +3715,14 @@ const Hanon={timed:true,running:false,buf:[],okRun:0,failRun:0,good:0,which:null
       const clefOf=arr=>{const x=arr.slice(a,b);return x.reduce((q,y)=>q+y,0)/x.length>=59?"treble":"bass"};
       this.drawing=drawAbc(el,abcDoc({meter:"2/4",len:"1/16",beat:4,voices:[{clef:clefOf(D.r),bars:mk(D.r,D.rf)},{clef:clefOf(D.l),bars:mk(D.l,D.lf)}]}),620)}
     await this.drawing;const k=this.pos-w*32;markNote(el,"sg-cur",".abcjs-note.abcjs-mm"+Math.floor(k/16)+".abcjs-n"+(k%16))},
-  pitch(n){const L=this.seqLen();if(!L)return;const e=this.exp(this.pos);
+  bump(p){const b=Math.floor(p/16);this.barErr[b]=(this.barErr[b]||0)+1},
+  pitch(n){const L=this.seqLen();if(!L)return;const e=this.exp(this.pos);this.barSeen[Math.floor(this.pos/16)]=1;
     if(e.includes(n)&&!this.got.includes(n)){this.got.push(n);if(this.got.length>=2){this.got=[];this.pos=(this.pos+1)%L;this.draw()}return}
-    for(let k=1;k<=3;k++){const p=(this.pos+k)%L;if(this.exp(p).includes(n)){this.errs+=k-(this.errAt===this.pos?1:0);this.pos=p;this.got=[n];this.draw();return}}
-    if(this.errAt!==this.pos){this.errAt=this.pos;this.errs++}},
-  start(){const n=this.num();if(n===this.H().cur&&HL.learning(n)){if(!HL.st||HL.st.n!==n)HL.begin(n);return}this.running=true;this.buf=[];this.okRun=0;this.failRun=0;this.last=0;this.pos=0;this.got=[];this.errs=0;this.draw();Metro.start(this.bpm(),true);const b=$("#hGo");if(b)b.textContent="Stoppen"},
-  stop(){this.running=false;Metro.stop();const b=$("#hGo");if(b)b.textContent="Starten"},
-  on(n,v,ts){if(HL.st&&HL.st.n===this.num()&&HL.learning(this.num()))return HL.note(n);if(!this.running||ts<Metro.t0p-200)return;this.pitch(n);
+    for(let k=1;k<=3;k++){const p=(this.pos+k)%L;if(this.exp(p).includes(n)){const add=k-(this.errAt===this.pos?1:0);this.errs+=add;if(add>0)this.bump(this.pos);this.pos=p;this.got=[n];this.draw();return}}
+    if(this.errAt!==this.pos){this.errAt=this.pos;this.errs++;this.bump(this.pos)}},
+  start(){const n=this.num();if(HL.learning(n))return;this.barErr={};this.barSeen={};this.drawMap();this.running=true;this.buf=[];this.okRun=0;this.failRun=0;this.last=0;this.pos=0;this.got=[];this.errs=0;this.draw();Metro.start(this.bpm(),true);const b=$("#hGo");if(b)b.textContent="Stoppen"},
+  stop(){this.running=false;Metro.stop();const b=$("#hGo");if(b)b.textContent="Starten";this.drawMap()},
+  on(n,v,ts){if(HL.learning(this.num()))return HL.note(n);if(!this.running||ts<Metro.t0p-200)return;this.pitch(n);
     if(this.buf.length&&ts-this.buf[this.buf.length-1].ts<45){const x=this.buf[this.buf.length-1];x.v=(x.v*x.k+v)/(x.k+1);x.k++;return}
     this.buf.push({ts,v,k:1});if(this.buf.length>=32){this.eval(this.buf);this.buf=[]}},
   eval(b){const sub=Metro.beat*1000/4,ph=b.map(x=>2*Math.PI*mod(x.ts-Metro.t0p,sub)/sub),mp=Math.atan2(ph.reduce((a,x)=>a+Math.sin(x),0),ph.reduce((a,x)=>a+Math.cos(x),0))*sub/(2*Math.PI),dev=b.map(x=>{let r=mod(x.ts-Metro.t0p-mp,sub);if(r>sub/2)r-=sub;return r}),m=dev.reduce((a,x)=>a+x,0)/dev.length;
@@ -3687,7 +3738,7 @@ const Hanon={timed:true,running:false,buf:[],okRun:0,failRun:0,good:0,which:null
       if(this.bpm()>=hanonTarget(n)){H.done[n]=today();H.cur=Math.min(60,n+1);bonus(40);burst(60);toast("Hanon Nr. "+n+" geschafft. Weiter mit Nr. "+H.cur);say("Geschafft. Weiter mit Nummer "+H.cur+".");S.level.hanon=hanonPart(H.cur);this.stop();saveSettings();Host.head();Host.mountCur();return}
       H.bpm[n]=Math.min(hanonTarget(n),this.bpm()+4);this.stop();saveSettings();toast("Gut. Nächste Runde mit Tempo "+H.bpm[n]);say("Gut. Nächste Runde etwas schneller.");if(fb){fb.className="fb ok";fb.textContent="Dreimal gleichmäßig. Nächste Runde: Tempo "+H.bpm[n]+". Starten, wenn du bereit bist."}}
     else if(this.failRun>=3&&!isRev){this.failRun=0;H.bpm[n]=Math.max(48,this.bpm()-4);this.stop();saveSettings();toast("Nächste Runde etwas langsamer: "+H.bpm[n]);if(fb){fb.className="fb no";fb.textContent="Dreimal unruhig. Nächste Runde: Tempo "+H.bpm[n]+". Starten, wenn du bereit bist."}}
-    S.hist.hanon=(S.hist.hanon||[]).concat([ok?1:0]).slice(-10);Host.head();set("#hBpm",this.bpm())}
+    S.hist.hanon=(S.hist.hanon||[]).concat([ok?1:0]).slice(-10);Host.head();set("#hBpm",this.bpm());this.drawMap()}
 };
 
 /* ---------- Shells und Stimmführung ---------- */
@@ -4395,7 +4446,7 @@ const Player={files:[],cur:null,audio:null,url:null,a:null,b:null,loop:true,raf:
   el(){if(!this.audio){this.audio=new Audio();this.audio.preservesPitch=true;this.audio.mozPreservesPitch=true;this.audio.webkitPreservesPitch=true;
       this.audio.addEventListener("ended",()=>{$("#plPlay").textContent="Abspielen"});this.audio.addEventListener("error",()=>{$("#plInfo").textContent="Die Datei lässt sich hier nicht abspielen. Geschützte Apple-Music-Titel gehen nicht, nur eigene oder abgeglichene Dateien."})}return this.audio},
   key(f){return (f.name+"|"+f.size).replace(/[^\w.|-]+/g,"_").slice(0,180)},
-  add(list){for(const f of list){if(!this.files.some(x=>x.name===f.name&&x.size===f.size))this.files.push(f)}this.renderList();if(!this.cur&&this.files.length)this.open(this.files[0]);Song.ctl()},
+  add(list){for(const f of list){if(!this.files.some(x=>x.name===f.name&&x.size===f.size))this.files.push(f)}this.renderList();if(!this.cur&&this.files.length)this.open(this.files[0]);Song.ctl();if(active==="player")setTimeout(()=>HR.render(),300)},
   findTrack(re,part){return this.files.find(f=>re.test(f.name)&&f.name.toLowerCase().includes(part.toLowerCase()))||null},
   renderList(){$("#plList").innerHTML=this.files.map((f,i)=>`<option value="${i}" ${f===this.cur?"selected":""}>${esc(f.name)}</option>`).join("")},
   async open(f){if(this.cur===f&&this.url)return;const a=this.el();a.pause();if(this.url)URL.revokeObjectURL(this.url);this.url=URL.createObjectURL(f);a.src=this.url;this.cur=f;this.a=this.b=null;this.range=null;this.renderList();
@@ -4428,8 +4479,124 @@ $("#plSave").onclick=async()=>{if(Player.a===null||Player.b===null){toast("Anfan
 async function scanFolder(dir,out,depth){for await(const [n,h] of dir.entries()){if(h.kind==="file"&&/\.(mp3|m4a|aac|wav)$/i.test(n))out.push(await h.getFile());else if(h.kind==="directory"&&depth<3)await scanFolder(h,out,depth+1)}return out}
 if(LOCAL&&window.showDirectoryPicker){$("#plFolder").hidden=false;$("#plFolder").onclick=async()=>{if(!FS.h){toast("Erst unter Heute den Sicherungsordner wählen");return}if(!(await FS.ok(true)))return;const fl=await scanFolder(FS.h,[],0);Player.add(fl);toast(fl.length+" Audiodateien gefunden")}}
 
+/* ---------- Heraushören an echter Musik ---------- */
+/* Songliste: Reihenfolge nach Schwierigkeit, Angaben zu Tonart und Tempo aus Hooktheory TheoryTab */
+const REAL_LIB=[
+  {id:"birds",t:"Three Little Birds",a:"Bob Marley",key:9,bpm:74,lv:1,hook:"https://www.hooktheory.com/theorytab/view/bob-marley/three-little-birds",why:"Nur Hauptstufen, ruhiges Tempo, klarer Bass. Gut für den Anfang: do finden und I, IV, V unterscheiden."},
+  {id:"standbyme",t:"Stand By Me",a:"Ben E. King",key:9,bpm:120,lv:1,hook:"https://www.hooktheory.com/theorytab/view/ben-e-king/stand-by-me",why:"Eine Akkordfolge fast durch den ganzen Song, dazu eine berühmte Basslinie zum Mitsingen."},
+  {id:"heaven",t:"Knockin' on Heaven's Door",a:"Bob Dylan",key:7,bpm:70,lv:2,hook:"https://www.hooktheory.com/theorytab/view/bob-dylan/knockin-on-heavens-door",why:"Langsam, kurze Viertakter, dazu ein Moll-Akkord neben den Hauptstufen."},
+  {id:"someone",t:"Someone Like You",a:"Adele",key:9,bpm:67,lv:2,hook:"https://www.hooktheory.com/theorytab/view/adele/someone-like-you",why:"Nur Klavier und Stimme, I, IV, V und vi. Der Bass läuft in Umkehrungen schrittweise – gut für Bass hören."},
+  {id:"journey",t:"Don't Stop Believin'",a:"Journey",key:4,bpm:119,lv:2,hook:"https://www.hooktheory.com/theorytab/view/journey/dont-stop-believin",why:"Klavier-Riff mit der häufigsten Pop-Folge. Achte darauf, wo ein Akkord anders klingt als erwartet."},
+  {id:"leanonme",t:"Lean on Me",a:"Bill Withers",key:0,bpm:73,lv:3,hook:"https://www.hooktheory.com/theorytab/view/bill-withers/lean-on-me",why:"Melodie fast nur in Schritten, Klavierbegleitung. Gut für Melodie und Bass."},
+  {id:"letitbe",t:"Let It Be",a:"The Beatles",key:0,bpm:69,lv:3,hook:"https://www.hooktheory.com/theorytab/view/the-beatles/let-it-be",why:"Klavier. Strophe mit vertrauten Stufen, später Umkehrungen und ein geliehener Akkord."},
+  {id:"zombie",t:"Zombie",a:"The Cranberries",key:4,minor:true,bpm:83,lv:4,hook:"https://www.hooktheory.com/theorytab/view/the-cranberries/zombie",why:"Moll, vier Akkorde in Schleife. do-basiert: E ist do."},
+  {id:"autumn",t:"Autumn Leaves (Trio-Track)",a:"Learn Jazz Standards",key:7,minor:true,bpm:140,lv:5,track:true,why:"Jazz: II–V–I in Dur und Moll. Hier kennt die App die Akkorde und prüft dich Takt für Takt."}];
+const HR_STEPS=[["do","do finden"],["bass","Bass"],["chords","Akkorde"],["mel","Melodie"],["cmp","Vergleich"]];
+const HR_Q=["Dur","Moll","7","maj7","m7","ø","°"];
+const HR_IV={Dur:[0,4,7],Moll:[0,3,7],"7":[0,4,7,10],maj7:[0,4,7,11],m7:[0,3,7,10],"ø":[0,3,6,10],"°":[0,3,6,9]};
+const HR_ROM=["I","♭II","II","♭III","III","IV","♯IV","V","♭VI","VI","♭VII","VII"];
+const hrRom=(d,q)=>{if(d==null)return"";let r=HR_ROM[mod(d,12)];if(["Moll","m7","ø","°"].includes(q))r=r.toLowerCase();return r+({"7":"7",maj7:"maj7",m7:"7","ø":"ø","°":"°"}[q]||"")};
+const hrDefQ=d=>[2,4,9].includes(mod(d,12))?"Moll":mod(d,12)===11?"°":"Dur";
+const hrFam=q=>({Dur:"maj",maj7:"maj",Moll:"min",m7:"min","7":"dom","ø":"hd","°":"dim"}[q]||q);
+function hrRefAutumn(){const s=SONGS.autumn,qm=c=>{const p=parseChord(c);const n=c.replace(/^[A-G][♭♯b#]?/,"");return /m7♭5|m7b5/.test(n)?"ø":/maj7/.test(n)?"maj7":/^m/.test(n)?"m7":/7/.test(n)?"7":"Dur"};
+  return s.bars.map(b=>{const p=parseChord(b.c[0]);return {d:mod(p.pc-7,12),q:qm(b.c[0])}})}
+const HR={sel:null,step:"do",pi:0,mode:null,taps:[],barI:-1,rec:null,doTarget:null,
+  R(){if(!S.real||typeof S.real!=="object")S.real={};return S.real},
+  song(){return REAL_LIB.find(x=>x.id===this.sel)||REAL_LIB[0]},
+  st(){const R=this.R(),s=this.song();return R[s.id]=R[s.id]||{p:[],cur:0,file:null}},
+  pass(){const st=this.st();return st.p[Math.min(st.cur,st.p.length-1)]||null},
+  barDur(p){return 240/p.bpm},
+  file(){const s=this.song(),st=this.st();if(s.track)return Player.findTrack(/Autumn_Leaves_/i,"Piano_Trio");if(!st.file)return null;return Player.files.find(f=>Player.key(f)===st.file)||null},
+  init(){const sel=$("#hrSong");if(!sel)return;if(!this.sel)this.sel=(S.realSel||REAL_LIB[0].id);
+    sel.innerHTML=REAL_LIB.map(x=>'<option value="'+x.id+'"'+(x.id===this.sel?" selected":"")+'>'+"Stufe "+x.lv+": "+esc(x.t)+" – "+esc(x.a)+'</option>').join("");
+    sel.onchange=e=>{this.stop();this.sel=e.target.value;S.realSel=this.sel;saveSettings();this.render()};this.render()},
+  nextText(){const s=this.song(),p=this.pass();if(!this.file())return "Heraushören: "+s.t+". Erst die Datei im Hörplayer laden.";if(!p)return "Heraushören: "+s.t+". Leg eine Stelle von 4 oder 8 Takten an.";const k=HR_STEPS.find(x=>!(p.done||{})[x[0]]);return "Heraushören: "+s.t+", "+p.name+(k?". Schritt: "+k[1]+".":". Fertig, leg die nächste Stelle an.")},
+  render(){const s=this.song(),st=this.st(),body=$("#hrBody"),info=$("#hrInfo");if(!body)return;if($("#hrSong"))$("#hrSong").value=s.id;
+    info.innerHTML=esc(s.why)+' Tonart: '+PC[s.key]+(s.minor?"-Moll (do = "+PC[s.key]+")":"-Dur")+', etwa '+s.bpm+' BPM'+(s.hook?' · <a href="'+s.hook+'" target="_blank" rel="noopener">Hooktheory</a> erst zum Vergleichen öffnen':"");
+    const f=this.file();
+    if(!f){body.innerHTML=s.track?'<p class="small">Lade oben im Hörplayer die Datei <b>Autumn_Leaves_…Piano_Trio</b> aus deinem Learn-Jazz-Standards-Paket.</p>':
+      '<ol class="small"><li>Kauf den Song im iTunes Store (nicht Apple Music: gestreamte Titel lassen sich nicht laden).</li><li>Oben im Hörplayer „Dateien öffnen“ und die Datei wählen.</li><li>Hier verknüpfen:</li></ol>'+
+      (Player.cur?'<button class="btn primary" id="hrLink" type="button">„'+esc(Player.cur.name)+'“ für diesen Song nehmen</button>':'<p class="small muted">Noch keine Datei im Hörplayer geladen.</p>');
+      if($("#hrLink"))$("#hrLink").onclick=()=>{st.file=Player.key(Player.cur);saveSettings();this.render()};return}
+    if(Player.cur!==f)Player.open(f);
+    const p=this.pass();
+    let h='<div class="row small">Abschnitt: '+(st.p.length?'<select id="hrPass">'+st.p.map((x,i)=>'<option value="'+i+'"'+(i===st.cur?" selected":"")+'>'+esc(x.name)+' ('+x.bars+' Takte)</option>').join("")+'</select>':'<span class="muted">noch keiner</span>')+' <button class="linkbtn" id="hrNew" type="button">Neuen Abschnitt anlegen</button></div>';
+    if(this.mode==="new"||!p){h+=this.newForm(s);body.innerHTML=h;this.wireNew(s);this.wireTop();return}
+    h+='<div class="hrsteps" role="group">'+HR_STEPS.map(([k,n],i)=>'<button type="button" data-st="'+k+'" aria-pressed="'+(this.step===k)+'"'+(p.done&&p.done[k]?' class="done"':'')+'>'+(p.done&&p.done[k]?"✓ ":"")+(i+1)+". "+n+'</button>').join("")+'</div>';
+    h+='<p class="small" id="hrHow">'+this.how(s,p)+'</p><div class="hrbars" id="hrBars"></div><div class="fb" id="hrFb"></div><div class="row" id="hrCtl"></div>';
+    body.innerHTML=h;this.wireTop();body.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{this.stop();this.step=b.dataset.st;this.render()});
+    this.drawBars();this.ctl()},
+  wireTop(){const st=this.st();if($("#hrPass"))$("#hrPass").onchange=e=>{this.stop();st.cur=+e.target.value;this.mode=null;saveSettings();this.render()};$("#hrNew").onclick=()=>{this.stop();this.mode="new";this.taps=[];this.render()}},
+  newForm(s){if(s.track)return '<p class="small">Wähle einen Formteil aus dem ersten Chorus:</p><div class="row">'+[["A1",0],["A2",8],["B",16],["C",24]].map(([n,b])=>'<button class="btn" type="button" data-pre="'+b+'">'+n+' (Takt '+(b+1)+'–'+(b+8)+')</button>').join("")+'</div>';
+    const A=Player.a,B=Player.b;
+    return '<ol class="small"><li>Oben im Hörplayer eine Stelle suchen, am besten Strophe oder Refrain. „Anfang setzen“ genau auf eine Eins, „Ende setzen“ nach 4 oder 8 Takten.</li><li>Stelle abspielen und hier 8-mal im Takt auf „Tippen“ drücken. Das ergibt das Tempo.</li><li>Takte prüfen und anlegen.</li></ol>'+
+      '<div class="row small"><span class="mono">Stelle: '+(A!=null?fmt(A*1000):"–")+' bis '+(B!=null?fmt(B*1000):"–")+'</span><button class="btn" id="hrTap" type="button">Tippen</button><span class="mono" id="hrBpm">'+(this.tapBpm||s.bpm)+' BPM</span></div>'+
+      '<div class="row small">Name <input type="text" id="hrName" size="14" placeholder="z. B. Strophe"> Takte <input type="number" id="hrBars" min="1" max="16" value="'+this.guessBars(s)+'" style="width:4em"><button class="btn primary" id="hrMake" type="button">Abschnitt anlegen</button>'+(this.st().p.length?'<button class="linkbtn" id="hrCancel" type="button">Abbrechen</button>':'')+'</div>'},
+  guessBars(s){const A=Player.a,B=Player.b,bpm=this.tapBpm||s.bpm;if(A==null||B==null)return 4;return Math.max(1,Math.round((B-A)/(240/bpm)))},
+  wireNew(s){const st=this.st();
+    document.querySelectorAll("[data-pre]").forEach(b=>b.onclick=()=>{const b0=+b.dataset.pre,bd=54.87/32;st.p.push({name:["A1","A2","B","C"][b0/8],a:3.48+b0*bd,b:3.48+(b0+8)*bd,bpm:140,bars:8,b0,bass:[],q:[],mel:[],done:{}});st.cur=st.p.length-1;this.mode=null;saveSettings();this.render()});
+    if(!$("#hrMake"))return;
+    $("#hrTap").onclick=()=>{const t=performance.now();this.taps=this.taps.filter(x=>t-x<4000).concat([t]);if(this.taps.length>=3){const d=this.taps.slice(1).map((x,i)=>x-this.taps[i]).sort((a,b)=>a-b);this.tapBpm=Math.round(60000/d[Math.floor(d.length/2)]);$("#hrBpm").textContent=this.tapBpm+" BPM";$("#hrBars").value=this.guessBars(s)}};
+    $("#hrMake").onclick=()=>{if(Player.a==null||Player.b==null){toast("Oben Anfang und Ende setzen");return}const bars=Math.max(1,+$("#hrBars").value||4),bpm=240*bars/(Player.b-Player.a);
+      st.p.push({name:$("#hrName").value.trim()||("Abschnitt "+(st.p.length+1)),a:Player.a,b:Player.b,bpm,bars,bass:[],q:[],mel:[],done:{}});st.cur=st.p.length-1;this.mode=null;saveSettings();this.render()};
+    if($("#hrCancel"))$("#hrCancel").onclick=()=>{this.mode=null;this.render()}},
+  ref(p){const s=this.song();if(!s.track||p.b0==null)return null;return hrRefAutumn().slice(p.b0,p.b0+p.bars)},
+  how(s,p){const k=PC[s.key];return {
+    do:"Hör die Stelle, summ den Ton, auf dem sie zur Ruhe kommt, und spiel ihn auf dem Klavier oder unten auf den Tasten. Danach kommen kurze Ausschnitte von anderen Stellen des Songs. Dreimal richtig, dann weiter.",
+    bass:"Sing die tiefste Linie mit. Tipp einen Takt an und spiel den Basston auf der Eins (Oktave egal), dann springt die Auswahl weiter. Mit „Mitspielen lassen“ hörst du deine Linie zur Aufnahme: Klingt ein Takt schief, ist dort der Ton falsch.",
+    chords:"Aus dem Basston schlägt die App einen Akkord vor: auf do, fa, so meist Dur, auf re, mi, la meist Moll. Tipp einen Takt an und ändere die Farbe, wenn es anders klingt. Dann deine Akkorde zur Aufnahme mitlaufen lassen.",
+    mel:"Spiel die Melodie der Stelle nach, während sie in Schleife läuft. Die App schreibt mit und zeigt die Silben. Mit „Meine Melodie dazu“ hörst du, ob sie passt.",
+    cmp:s.track?"Die App vergleicht deinen Bass und deine Akkorde mit dem Leadsheet.":"Jetzt erst vergleichen: Öffne den Song bei Hooktheory und prüfe Bass und Akkorde dieser Stelle. Danach markier, was gestimmt hat."}[this.step]},
+  drawBars(){const el=$("#hrBars"),p=this.pass();if(!el||!p)return;const s=this.song(),ref=this.step==="cmp"?this.ref(p):null;
+    el.innerHTML=[...Array(p.bars)].map((_,i)=>{const d=p.bass[i],q=p.q[i]||(d!=null?hrDefQ(d):null);let cls="";if(ref&&d!=null){const r=ref[i];cls=r&&r.d===mod(d,12)&&hrFam(q)===hrFam(r.q)?" ok":" no"}
+      return '<button type="button" class="hrbar'+(i===this.barI?" sel":"")+cls+'" data-b="'+i+'"><span class="n">'+(i+1)+'</span><span class="c">'+(d!=null?esc(PC[mod(s.key+d,12)])+(q&&q!=="Dur"?esc(q==="Moll"?"m":q):""):"?")+'</span><span class="r">'+(d!=null?SOL[mod(d,12)]+" · "+hrRom(d,q):"")+(ref&&cls===" no"?" → "+hrRom(ref[i].d,ref[i].q):"")+'</span></button>'}).join("");
+    el.querySelectorAll("[data-b]").forEach(b=>b.onclick=()=>{this.barI=+b.dataset.b;this.drawBars();this.ctl()})},
+  ctl(){const el=$("#hrCtl"),p=this.pass();if(!el||!p)return;const s=this.song();let h='<button class="btn primary" id="hrPlay" type="button">'+(this.playing?"Stopp":"Stelle abspielen")+'</button>';
+    if(this.step==="bass"||this.step==="chords")h+='<button class="btn" id="hrWith" type="button">Mitspielen lassen</button><button class="btn" id="hrOnly" type="button">Nur meine '+(this.step==="bass"?"Linie":"Akkorde")+'</button>';
+    if(this.step==="chords"&&this.barI>=0&&p.bass[this.barI]!=null)h+='<span class="small">Takt '+(this.barI+1)+': '+HR_Q.map(q=>'<button class="linkbtn" type="button" data-q="'+q+'">'+q+'</button>').join("")+'</span>';
+    if(this.step==="mel")h+='<button class="btn" id="hrRec" type="button">'+(this.rec?"Aufnahme beenden":"Mitschreiben")+'</button><button class="btn" id="hrMel" type="button">Meine Melodie dazu</button>';
+    if(this.step!=="do"&&this.step!=="cmp")h+='<button class="btn" id="hrOk" type="button">Klingt richtig</button>';
+    if(this.step==="cmp"&&!s.track)h+=(s.hook?'<a class="btn" href="'+s.hook+'" target="_blank" rel="noopener">Bei Hooktheory vergleichen</a>':'')+'<button class="btn" id="hrCmpOk" type="button">Hat gestimmt</button><button class="btn" id="hrCmpNo" type="button">Teilweise falsch</button>';
+    if(this.step==="mel"&&p.mel.length)h+='<p class="small" style="width:100%">Mitgeschrieben: '+p.mel.map(x=>SOL[mod(x.n-s.key,12)]).join(" ")+'</p>';
+    el.innerHTML=h;
+    $("#hrPlay").onclick=()=>{ac();this.playing?this.stop():this.play(null)};
+    if($("#hrWith"))$("#hrWith").onclick=()=>{ac();this.play(this.step)};
+    if($("#hrOnly"))$("#hrOnly").onclick=()=>{ac();this.stop();this.synthOnly()};
+    el.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>{p.q[this.barI]=b.dataset.q;saveSettings();this.drawBars();this.ctl()});
+    if($("#hrRec"))$("#hrRec").onclick=()=>{ac();if(this.rec){this.rec=null;this.stop();this.ctl()}else{p.mel=[];this.rec={};this.play(null);this.ctl()}};
+    if($("#hrMel"))$("#hrMel").onclick=()=>{ac();this.play("mel")};
+    if($("#hrOk"))$("#hrOk").onclick=()=>{const need=this.step==="mel"?p.mel.length:p.bass.filter(x=>x!=null).length>=p.bars;if(!need){toast(this.step==="mel"?"Erst mitschreiben":"Erst alle Takte ausfüllen");return}this.mark(this.step)};
+    if($("#hrCmpOk"))$("#hrCmpOk").onclick=()=>this.mark("cmp",true);if($("#hrCmpNo"))$("#hrCmpNo").onclick=()=>{p.cmpErr=(p.cmpErr||0)+1;saveSettings();toast("Korrigier die Takte unter Bass und Akkorde, dann noch einmal vergleichen.");this.step="bass";this.render()};
+    if(this.step==="cmp"&&s.track)this.autoCmp()},
+  autoCmp(){const p=this.pass(),ref=this.ref(p),fb=$("#hrFb");if(!ref||!fb)return;const ok=ref.filter((r,i)=>p.bass[i]!=null&&r.d===mod(p.bass[i],12)&&hrFam(p.q[i]||hrDefQ(p.bass[i]))===hrFam(r.q)).length;
+    fb.className="fb "+(ok===p.bars?"ok":"no");fb.textContent=ok+" von "+p.bars+" Takten stimmen."+(ok<p.bars?" Rot markiert ist, was das Leadsheet anders hat.":"");if(ok===p.bars&&!(p.done||{}).cmp)this.mark("cmp",true)},
+  mark(k,quiet){const p=this.pass();p.done=p.done||{};if(!p.done[k]){p.done[k]=today();bonus(10);good();toast("Geschafft: "+HR_STEPS.find(x=>x[0]===k)[1])}saveSettings();const i=HR_STEPS.findIndex(x=>x[0]===k);if(!quiet&&i<HR_STEPS.length-1)this.step=HR_STEPS[i+1][0];this.render()},
+  /* Wiedergabe mit Taktverfolgung */
+  play(withMode){const p=this.pass();if(!p)return;this.stop(true);this.playing=true;this.with=withMode;this.lastBar=-1;this.prevRel=null;
+    Player.playRange(p.a,p.b,true,t=>this.tick(t));const b=$("#hrPlay");if(b)b.textContent="Stopp"},
+  tick(t){const p=this.pass();if(!p)return;const bd=this.barDur(p),rel=t-p.a,bar=Math.floor(rel/bd+1e-3);
+    if(bar!==this.lastBar&&bar>=0&&bar<p.bars){this.lastBar=bar;document.querySelectorAll("#hrBars .hrbar").forEach((e,i)=>e.classList.toggle("now",i===bar));
+      if(this.with==="bass"||this.with==="chords")this.sound(bar,ac().currentTime+.01,bd/Player.el().playbackRate)}
+    if(this.with==="mel"&&p.mel.length){const pr=this.prevRel==null?-1:this.prevRel,wrap=rel<pr;p.mel.forEach(x=>{if(wrap?(x.t>pr||x.t<=rel):(x.t>pr&&x.t<=rel))synthNote(x.n,ac().currentTime,.35,70)})}
+    this.prevRel=rel;
+    this.relT=rel},
+  sound(i,t,dur){const p=this.pass(),s=this.song(),d=p.bass[i];if(d==null)return;const root=36+mod(s.key+d,12)+(mod(s.key+d,12)<4?12:0);synthNote(root,t,Math.min(1.6,dur*.9),80);
+    if(this.with==="chords"||this.only==="chords"){const q=p.q[i]||hrDefQ(d);HR_IV[q].slice(1).forEach(x=>synthNote(55+mod(root+x-55,12),t,Math.min(1.6,dur*.9),48))}},
+  synthOnly(){const p=this.pass();if(!p)return;const bd=this.barDur(p),t0=ac().currentTime+.1;this.only=this.step;for(let i=0;i<p.bars;i++)this.sound(i,t0+i*bd,bd);setTimeout(()=>{this.only=null},p.bars*bd*1000)},
+  stop(keep){this.playing=false;this.with=null;Player.pause();Player.range=null;Player.onTick=null;document.querySelectorAll("#hrBars .hrbar").forEach(e=>e.classList.remove("now"));if(!keep){const b=$("#hrPlay");if(b)b.textContent="Stelle abspielen"}},
+  /* Eingaben */
+  note(n){const p=this.pass(),s=this.song();if(!p)return;lastInput=performance.now();const fb=$("#hrFb");
+    if(this.step==="do"){const ok=mod(n-s.key,12)===0;if(ok){good();p.doOk=(p.doOk||0)+1;if(fb){fb.className="fb ok";fb.textContent="Richtig: "+PC[s.key]+" ist do. "+(p.doOk>=3?"":"Nächster Ausschnitt …")}
+        if(p.doOk>=3){p.doOk=0;this.mark("do");return}saveSettings();setTimeout(()=>this.randomExcerpt(),900)}
+      else{bad();if(fb){fb.className="fb no";fb.textContent="Nicht "+PC[mod(n,12)]+". Summ den Ruheton und versuch es noch einmal."}}return}
+    if(this.step==="bass"||this.step==="chords"){if(this.playing&&this.with==null&&this.lastBar>=0&&n<60){p.bass[this.lastBar]=mod(n-s.key,12);saveSettings();this.drawBars();return}
+      if(this.barI<0)this.barI=0;p.bass[this.barI]=mod(n-s.key,12);if(p.q[this.barI]&&this.step==="bass")delete p.q[this.barI];this.barI=Math.min(p.bars-1,this.barI+1);saveSettings();this.drawBars();this.ctl();return}
+    if(this.step==="mel"&&this.rec&&this.playing){p.mel.push({n,t:Math.max(0,this.relT||0)});if(p.mel.length>64)p.mel.shift();saveSettings();this.ctl()}},
+  randomExcerpt(){const a=Player.el(),d=a.duration||0;if(!d)return;const len=8,st=Math.max(2,Math.random()*(d-len-4));this.stop(true);this.playing=true;Player.playRange(st,st+len,false);const fb=$("#hrFb");if(fb){fb.className="fb";fb.textContent="Andere Stelle: Wo ist do?"}}
+};
+
 /* ---------- Übeplan ---------- */
-const TYPE_PANEL=t=>SK[t]?"drill":t==="rep"?"rep":(t==="song"||t==="licks")?"song":t==="listen"?"listen":(t==="rec"||t==="free")?"rec":null;
+const TYPE_PANEL=t=>SK[t]?"drill":t==="rep"?"rep":t==="real"?"player":(t==="song"||t==="licks")?"song":t==="listen"?"listen":(t==="rec"||t==="free")?"rec":null;
 function blk(type,share,extra){const base=SK[type]?{type,title:SK[type].title,text:SK[type].text}:type==="rec"?{type,title:"Freies Spiel: Blues in F",text:"Links Shells (F7, B♭7, C7), rechts Bluestonleiter in F: F, A♭, B♭, B, C, E♭. Kurze Phrasen, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true}:type==="listen"?{type,title:"Hörauftrag mit echter Musik",text:""}:type==="rep"?{type,title:"Repertoire",text:"Die fälligen Stücke durchspielen, ohne anzuhalten, und danach bewerten."}:type==="song"?{type,title:"Song: Autumn Leaves",text:"Aufgabe der Woche aus der Lektion."}:type==="licks"?{type,title:"Blues-Phrasen",text:"Nächster Schritt im Reiter Song, Karte Blues-Phrasen."}:{type,title:type,text:""};return Object.assign({},base,{share},extra||{})}
 /* ---------- Übeprogramm 30 Minuten (v3) ---------- */
 const FREE_AL={title:"Freies Spiel über Autumn Leaves",text:"Links die Grundtöne oder Shells der Form, rechts Bruchstücke der Melodie und eigene Varianten davon. Nicht anhalten, falsche Töne sind erlaubt. Wird aufgenommen.",bpm:72,metronome:true};
@@ -4519,7 +4686,7 @@ const Runner={on:false,last:0,tick:null,lock:null,seg:null,switching:false,start
     if(b.type==="hanon"){const H=hanonInit();Hanon.which=null;H.rev=(H.rev||0)+1;if(H.rev%3===0&&Hanon.review())Hanon.which=Hanon.review()}
     if(panel==="drill")Host.open(b.type,false);else{Host.close();showPanel(panel);if(panel==="listen")Listen.show(b);if(panel==="song"){Song.show();if(b.type==="licks")setTimeout(()=>{const c=$("#lkCard");if(c)c.scrollIntoView({behavior:"smooth",block:"start"})},400)}}
     if(panel==="drill")$("#dFoot").hidden=true;if(panel==="rep")Rep.begin();
-    chime();$("#rIdx").textContent="Übung "+(k+1)+" von "+DAY.blocks.length;$("#rTitle").textContent=b.title;$("#rText").textContent=(b.type==="song"&&Trainer.nextText())||(b.type==="licks"&&Licks.nextText())||b.text||"";
+    chime();$("#rIdx").textContent="Übung "+(k+1)+" von "+DAY.blocks.length;$("#rTitle").textContent=b.title;$("#rText").textContent=(b.type==="real"&&HR.nextText())||(b.type==="song"&&Trainer.nextText())||(b.type==="licks"&&Licks.nextText())||b.text||"";
     const nx=DAY.blocks.slice(k+1).find(x=>!x.done);$("#rNext").textContent=nx?"Danach: "+nx.title:"Danach: fertig";
     $("#rClock").textContent=fmt(b.leftMs);$("#rBar").style.width=Math.min(100,100*(1-b.leftMs/b.ms))+"%";this.steps();
     const m=Math.max(1,Math.round(b.leftMs/60000));say(b.title+". "+(b.leftMs<b.ms-5000?"Noch ":"")+m+(m===1?" Minute.":" Minuten."));
@@ -4529,7 +4696,7 @@ const Runner={on:false,last:0,tick:null,lock:null,seg:null,switching:false,start
       if(panel==="rec"){$("#recTask").textContent=b.title;$("#recLabel").value=b.title;const metro=b.metronome===null?b.type!=="free":b.metronome;Rec.start({bpm:b.bpm||+$("#recBpm").value||80,metro,label:b.title})}
     },delay||2200)},
   async closeSeg(){const s=this.seg;if(!s)return;this.seg=null;this.starting=false;const b=s.b,panel=TYPE_PANEL(b.type);
-    if(panel==="drill")Host.close();if(panel==="song"){Trainer.stop();Licks.stop();Song.stop()}if(panel==="rec"){const id=await Rec.stop(true);if(id)b.recordingIds.push(id)}
+    if(panel==="drill")Host.close();if(panel==="song"){Trainer.stop();Licks.stop();Song.stop()}if(panel==="player")HR.stop();if(panel==="rec"){const id=await Rec.stop(true);if(id)b.recordingIds.push(id)}
     if(s.snap){const x=Stats.snap(b.type);b.attempts+=x.a-s.snap.a;b.correct+=x.c-s.snap.c;b.timeSum+=x.ts-s.snap.ts;b.timeN+=x.tn-s.snap.tn}
     if(b.type==="rep"){b.attempts+=Rep.sessRated;b.correct+=Rep.sessClean}
     b.levelEnd=S.level[b.type]||null},
@@ -4603,7 +4770,37 @@ function renderPath(){
   document.querySelectorAll("#p-path .skill").forEach(b=>b.onclick=()=>{ac();Host.open(b.dataset.s,false)})
 }
 let RECS=[];
+/* ---------- Fortschritt ---------- */
+function wkStart(d){const x=new Date(d+"T12:00:00");const wd=(x.getDay()+6)%7;x.setDate(x.getDate()-wd);return x.toISOString().slice(0,10)}
+function progress(days,stats){const now=today(),weeks=[];let w=wkStart(now);for(let i=0;i<8;i++){weeks.unshift(w);const x=new Date(w+"T12:00:00");x.setDate(x.getDate()-7);w=x.toISOString().slice(0,10)}
+  const idx=d=>weeks.indexOf(wkStart(d)),mins=weeks.map(()=>0),dd=weeks.map(()=>new Set());
+  days.forEach(s=>{if(!s.date)return;const i=idx(s.date.slice(0,10));if(i<0)return;mins[i]+=practicedMs(s)/60000;dd[i].add(s.date.slice(0,10))});
+  const per=(drill,fn)=>weeks.map((w,i)=>{const st=stats.filter(x=>x.drill===drill&&x.date&&idx(x.date)===i);if(!st.length)return null;return fn(st)});
+  const avgT=st=>{const n=st.reduce((a,x)=>a+(x.timeN||0),0);return n?st.reduce((a,x)=>a+(x.timeSum||0),0)/n/1000:null};
+  const acc=st=>{const a=st.reduce((q,x)=>q+(x.attempts||0),0);return a?100*st.reduce((q,x)=>q+(x.correct||0),0)/a:null};
+  return {weeks,mins,dd:dd.map(x=>x.size),dofind:per("dofind",avgT),names:per("names",avgT),ear:per("ear",acc),bass:per("bass",avgT)}}
+function spark(vals,fmtv,lower){const v=vals.map(x=>x==null?null:+x),mx=Math.max(1e-6,...v.filter(x=>x!=null));
+  const last=[...v].reverse().find(x=>x!=null),prev=v.filter(x=>x!=null).slice(-2)[0];let tr="";if(last!=null&&prev!=null&&v.filter(x=>x!=null).length>1){const better=lower?last<prev:last>prev;tr=last===prev?" · gleich":better?" · besser als letzte Woche":" · schlechter als letzte Woche"}
+  return {html:'<div class="spark">'+v.map((x,i)=>'<i class="'+(i===v.length-1?"cur":"")+'" style="height:'+(x==null?0:Math.max(4,100*x/mx))+'%" title="'+(x==null?"–":fmtv(x))+'"></i>').join("")+'</div>',last:last==null?"–":fmtv(last),tr}}
+async function renderProgress(){const box=$("#pgBox");if(!box)return;const [days,stats]=await Promise.all([Store.list("days"),Store.list("stats")]);const P=progress(days,stats);
+  const lbl='<div class="sparklbl">'+P.weeks.map(w=>'<span>'+w.slice(8,10)+'.'+w.slice(5,7)+'</span>').join("")+'</div>';
+  const card=(t,sp,sub)=>'<div class="box"><div class="label">'+t+'</div><div class="big">'+sp.last+'<span class="small muted">'+sp.tr+'</span></div>'+sp.html+lbl+(sub?'<p class="small muted">'+sub+'</p>':'')+'</div>';
+  const H=hanonInit(),SH=shInit(),pool=shPool(lvl("shell")),seen=pool.filter(c=>Shell.seen(c)),sit=pool.filter(c=>Shell.sits(c)).length;
+  const avgShell=seen.length?seen.map(c=>{const e=SH.it[shKey(c)]||[];return e.length?e.slice(-3).reduce((a,b)=>a+b,0)/Math.min(3,e.length):9000}).reduce((a,b)=>a+b,0)/seen.length/1000:null;
+  const hn=H.cur,hb=H.bpm[hn]||0,ht=hanonTarget(hn),tr=S.trainer&&S.trainer.autumn?Object.values(S.trainer.autumn.done||{}).filter(Boolean).length:0,C=compInit(),R=S.real||{};
+  const realDone=Object.keys(R).map(k=>{const r=R[k];const p=(r.p||[]);return (REAL_LIB.find(x=>x.id===k)||{t:k}).t+": "+p.reduce((a,x)=>a+Object.keys(x.done||{}).length,0)+" Schritte"}).join(" · ");
+  box.innerHTML=card("Übezeit pro Woche (Min)",spark(P.mins,x=>Math.round(x)+" min"),"Übetage diese Woche: "+P.dd[P.dd.length-1])+
+    card("do finden (Sekunden)",spark(P.dofind,x=>x.toFixed(1)+" s",true),"Ziel: unter 3 s")+
+    card("Stufen und Namen (Sekunden)",spark(P.names,x=>x.toFixed(1)+" s",true),"")+
+    card("Melodien hören (% richtig)",spark(P.ear,x=>Math.round(x)+" %"),"")+
+    '<div class="box"><div class="label">Am Klavier</div>'+
+    '<p class="small"><b>Griffe:</b> '+sit+' von '+pool.length+' sitzen'+(avgShell!=null?', im Schnitt '+avgShell.toFixed(1)+' s':'')+'</p>'+
+    '<p class="small"><b>Hanon:</b> Nr. '+hn+', Tempo '+(hb||"–")+' von '+ht+' · '+Object.keys(H.done).length+' Nummern geschafft</p>'+
+    '<p class="small"><b>Begleiten:</b> Pattern '+lvl("comp")+' von '+COMP_PATS.length+', '+CP_PH[Math.min(2,(C.ph||{})[lvl("comp")]||0)]+'</p>'+
+    '<p class="small"><b>Autumn Leaves:</b> '+tr+' von '+TR_SEQ.length+' Schritten</p>'+
+    (realDone?'<p class="small"><b>Heraushören:</b> '+esc(realDone)+'</p>':'')+'</div>'}
 async function loadLog(){
+  renderProgress();
   const [days,recs,lis]=await Promise.all([Store.list("days"),Store.list("recordings"),Store.list("listening")]);DAYS=days.slice();
   days.sort((a,b)=>(b.date||"").localeCompare(a.date||""));RECS=recs.sort((a,b)=>(b.createdAt||"").localeCompare(a.createdAt||""));
   const part=(s,ear)=>{const bs=(s.blocks||[]).filter(b=>ear===PHONE_TYPES.includes(b.type)),a=bs.reduce((x,b)=>x+(b.attempts||0),0),c=bs.reduce((x,b)=>x+(b.correct||0),0);return a?c+"/"+a:"–"};
@@ -4621,9 +4818,9 @@ $("#copyLog").onclick=async()=>{const [days,stats,lis]=await Promise.all([Store.
 
 function showPanel(p){
   const recTab=document.querySelector('.tab[data-p="rec"]');if(recTab)recTab.hidden=!LOCAL&&!hasPiano;
-  if(p!=="song"){if(Trainer.st)Trainer.stop();if(Licks.st)Licks.stop();if(Song.playing)Song.stop()}if(p!=="player"&&p!=="song"&&Player.audio&&!Player.audio.paused)Player.pause();
+  if(p!=="song"){if(Trainer.st)Trainer.stop();if(Licks.st)Licks.stop();if(Song.playing)Song.stop()}if(p!=="player"&&HR.playing)HR.stop();if(p!=="player"&&p!=="song"&&Player.audio&&!Player.audio.paused)Player.pause();
   if(p!=="drill"&&Host.cur&&!Runner.on)Host.close();
-  active=p;document.querySelectorAll("section.panel").forEach(s=>s.hidden=s.id!=="p-"+p);
+  active=p;document.querySelectorAll("section.panel").forEach(s=>s.hidden=s.id!=="p-"+p);if(p==="player")HR.init();
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.p===p||(p==="drill"&&t.dataset.p==="path"))));
   if(p==="home")renderHome();if(p==="path")renderPath();if(p==="rep")Rep.render();if(p==="log")loadLog();if(p==="song")Song.render();if(p==="listen"&&!Runner.on)Listen.show(null);
 }
