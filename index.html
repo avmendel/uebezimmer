@@ -2896,8 +2896,10 @@ function say(t,force,onend){let done=false;const f=()=>{if(!done){done=true;if(o
 
 /* ---------- Einstellungen ---------- */
 const S={real:{},realSel:null,trainer:{},lesson:null,songView:"both",syncs:[],level:{},hist:{},keyMode:"rand",voice:true,dur:30,apOn:false,apClasses:[0,4,9],apHist:{},techBpm:{},xp:0,freezes:0,qualCount:0,frozen:[],repaired:[],pauses:[],best:{streak:0,earLen:0},rep:null,qKey:null,qPos:0,qStart:0,qDate:null,shell:null,comp:null};
-let settingsTimer=null;
-function saveSettings(){clearTimeout(settingsTimer);settingsTimer=setTimeout(()=>Store.putSettings(JSON.parse(JSON.stringify(S))),1500)}
+let settingsTimer=null,SETTINGS_OK=false,settingsPending=false;
+/* Einstellungen werden erst gespeichert, wenn der gespeicherte Stand geladen ist. Sonst könnte ein leerer Startzustand den echten Stand im Abgleich überschreiben. */
+function saveSettings(){if(!SETTINGS_OK){settingsPending=true;return}clearTimeout(settingsTimer);settingsTimer=setTimeout(()=>Store.putSettings(JSON.parse(JSON.stringify(S))),1500)}
+function settingsReady(){SETTINGS_OK=true;if(settingsPending){settingsPending=false;saveSettings()}}
 
 /* ---------- Speicher: lokal (IndexedDB) + automatischer Abgleich mit GitHub ---------- */
 const IDB={db:null,
@@ -2924,7 +2926,10 @@ const Store={db:true,M:{},meta:{head:null,tree:null},busy:null,again:false,timer
     for(const [k,v] of await IDB.all("docs"))this.M[k]=v;
     for(const [k,v] of await IDB.all("meta"))this.meta[k]=v;
     this.chip();
-    if(GH.cfg()){try{await Promise.race([this.sync(true),new Promise(r=>setTimeout(r,9000))])}catch(e){}}
+    this.initDone=!GH.cfg();
+    if(GH.cfg()){const sp=this.sync(true).then(ch=>{this.initDone=true;return ch},()=>{this.initDone=true;return false});
+      const fin=await Promise.race([sp.then(()=>true),new Promise(r=>setTimeout(()=>r(false),9000))]);
+      if(!fin)sp.then(ch=>{if(this.onLateInit)this.onLateInit(ch)})}
     setInterval(()=>{if(document.visibilityState==="visible"&&!Runner.on)this.sync()},90000)},
   chip(){const el=$("#storeChip"),t=$("#storeText");if(!el)return;const c=GH.cfg();let txt,ok=false;
     if(!c)txt="Nur dieses Gerät";
@@ -4448,7 +4453,7 @@ const Player={files:[],cur:null,audio:null,url:null,a:null,b:null,loop:true,raf:
       this.audio.addEventListener("ended",()=>{$("#plPlay").textContent="Abspielen"});this.audio.addEventListener("error",()=>{$("#plInfo").textContent="Die Datei lässt sich hier nicht abspielen. Geschützte Apple-Music-Titel gehen nicht, nur eigene oder abgeglichene Dateien."})}return this.audio},
   key(f){return (f.name+"|"+f.size).replace(/[^\w.|-]+/g,"_").slice(0,180)},
   add(list,stored){for(const f of list){if(!this.files.some(x=>x.name===f.name&&x.size===f.size)){this.files.push(f);if(!stored)IDB.put("files","pl:"+this.key(f),{name:f.name,type:f.type,blob:f})}}this.renderList();this.storeInfo();if(!this.cur&&this.files.length)this.open(this.files[0]);Song.ctl();if(active==="player")setTimeout(()=>HR.render(),300)},
-  async restore(){if(!IDB.db)await IDB.open();try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
+  async restore(){if(!IDB.db)return;try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(e){}
     const L=(await IDB.all("files")).filter(([k,v])=>String(k).startsWith("pl:")&&v&&v.blob).map(([k,v])=>new File([v.blob],v.name,{type:v.type||v.blob.type||""}));
     if(L.length)this.add(L,true);else this.storeInfo()},
   storeInfo(){const el=$("#plStored");if(!el)return;el.hidden=!this.files.length;el.textContent="Gespeichert: "+this.files.length+" Datei"+(this.files.length===1?"":"en")+" · Liste leeren"},
@@ -4476,7 +4481,6 @@ const Player={files:[],cur:null,audio:null,url:null,a:null,b:null,loop:true,raf:
 $("#plFile").onchange=e=>{Player.add([...e.target.files]);e.target.value=""};
 $("#plList").onchange=e=>Player.open(Player.files[+e.target.value]);
 $("#plStored").onclick=e=>{const b=e.currentTarget;if(b.dataset.sure){delete b.dataset.sure;Player.clearStored();return}b.dataset.sure=1;b.textContent="Wirklich alle Dateien aus der Liste entfernen? Nochmal tippen.";setTimeout(()=>{delete b.dataset.sure;Player.storeInfo()},4000)};
-setTimeout(()=>Player.restore(),0);
 $("#plPlay").onclick=()=>{ac();const el=Player.el();if(el.paused)Player.play();else Player.pause()};
 $("#plBack").onclick=()=>{const el=Player.el();el.currentTime=Math.max(0,el.currentTime-5);Player.ui()};
 $("#plSeek").oninput=e=>{const el=Player.el();if(el.duration)el.currentTime=el.duration*e.target.value/1000;Player.ui()};
@@ -5203,11 +5207,13 @@ buildKb();renderHome();
 (async()=>{
   await Store.init();
   const s=await Store.getSettings();
+  if(s||Store.initDone)settingsReady();
+  else Store.onLateInit=()=>{if(Store.getDoc("settings/main")){if(Runner.on||Rec.on){Store.onRemote&&Store.onRemote();return}toast("Stand aus dem Abgleich geladen");setTimeout(()=>location.reload(),700)}else settingsReady()};
   if(s){Object.keys(S).forEach(k=>{if(s[k]!==undefined)S[k]=s[k]});S.level=Object.assign({},s.level||{});S.hist=Object.assign({},s.hist||{});S.best=Object.assign({streak:0,earLen:0},s.best||{});["frozen","repaired","pauses"].forEach(k=>{if(!Array.isArray(S[k]))S[k]=[]})}
   repInit();
   if(!Array.isArray(S.apClasses)||!S.apClasses.length)S.apClasses=[0,4,9];S.level.ap=S.apClasses.length;
   const p=await Store.getPlan();if(p&&((Array.isArray(p.rotation)&&p.rotation.length&&p.rotation.every(validBlocks))||validBlocks(p.blocks)))PLAN=p;
-  if(ensurePlan())Store.setDoc("plan/current","plan",PLAN);
+  if(ensurePlan()&&(p||Store.initDone))Store.setDoc("plan/current","plan",PLAN);
   hanonInit();S.level.hanon=hanonPart(S.hanon.cur);
   syncUi();
   (await Store.list("stats")).filter(x=>x.date===today()).forEach(x=>{const o=Object.assign({},x);delete o.id;Stats.day[x.id]=o});
@@ -5216,7 +5222,7 @@ buildKb();renderHome();
   if(pend&&pend.doc){await Store.put("recordings",pend.id,pend.doc);if(DAY&&pend.date===DAY.date&&DAY.blocks[pend.block])DAY.blocks[pend.block].recordingIds.push(pend.id);LS.set("pendingRec",null)}
   if(DAY)persistDay(true);
   repairDate=applyFreezes();
-  renderHome();loadLog();
+  renderHome();loadLog();Player.restore();
   if(navigator.permissions&&navigator.requestMIDIAccess){try{const q=await navigator.permissions.query({name:"midi"});if(q.state==="granted")connectMidi()}catch(e){}}
 })();
 </script>
