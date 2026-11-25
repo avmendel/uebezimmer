@@ -198,6 +198,14 @@ details summary{cursor:pointer;color:var(--muted);font-size:.9rem}
 .trstep.cur{font-weight:600;color:var(--accent)}
 .lkline{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-family:var(--display);font-size:1.6rem}
 .lksyl.ok{color:var(--good)}
+.vcwork{display:flex;flex-direction:column;gap:10px}
+.vcitem{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.vcitem.on{border-color:var(--accent)}
+.vcitem p{margin:0}
+.vcl{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.vcl span{border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:.7rem;padding:3px 0;text-align:center;color:var(--muted)}
+.vcl span.done{background:var(--good-soft);border-color:var(--good);color:var(--ink)}
+.vcl span.cur{outline:2px solid var(--accent);outline-offset:-1px;color:var(--ink)}
 .lkbars{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:3px;width:100%}
 .lkbars span{border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:.7rem;padding:4px 0;text-align:center}
 .lkbars span.me{background:var(--accent-soft);border-color:var(--accent)}
@@ -311,6 +319,7 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
     <button class="tab" role="tab" data-p="path">Lernpfad</button>
     <button class="tab" role="tab" data-p="rep">Stücke</button>
     <button class="tab" role="tab" data-p="song">Song</button>
+    <button class="tab" role="tab" data-p="vocab">Vokabeln</button>
     <button class="tab" role="tab" data-p="player">Hörplayer</button>
     <button class="tab" role="tab" data-p="rec">Aufnahme</button>
     <button class="tab" role="tab" data-p="log">Fortschritt</button>
@@ -426,7 +435,7 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
       <details><summary>Alle Schritte</summary><ol class="trlist" id="trList"></ol></details>
       <details><summary>Hörbeispiele</summary><ul class="small" id="sgListen"></ul></details>
     </div>
-    <div class="card" id="lkCard">
+    <div class="card" id="lkCard" hidden>
       <div class="levelline"><div><div class="label" id="lkLbl">Blues-Phrasen</div><h2>Blues-Vokabeln</h2></div></div>
       <div class="trbar"><i id="lkProg"></i></div>
       <div class="trbox">
@@ -464,6 +473,33 @@ tr.grp td{font-weight:600;padding-top:10px;color:var(--accent)}
         <span class="muted" id="sgTrackInfo"></span>
       </div>
       <p class="muted small" id="sgHint"></p>
+    </div>
+  </section>
+
+  <section class="panel" id="p-vocab" hidden>
+    <div class="card">
+      <div class="label">Vokabelheft</div><h2>Jazz-Vokabeln</h2>
+      <p class="small" id="vcSum"></p>
+      <p class="small fb ok" id="vcNote" hidden></p>
+      <div id="vcWork" class="vcwork"></div>
+    </div>
+    <div class="card" id="vcEx" hidden>
+      <div class="trbox">
+        <div class="label" id="vcStep"></div>
+        <h3 id="vcHead"></h3>
+        <p id="vcHow"></p>
+        <div id="vcStage"></div>
+        <div id="vcCtl"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Gelernt</div>
+      <div id="vcLearned" class="vcwork"></div>
+    </div>
+    <div class="card">
+      <details><summary>Alle Vokabeln in der Reihenfolge</summary><ol class="small" id="vcAll"></ol></details>
+      <details><summary>Was die App in deinen freien Aufnahmen gefunden hat</summary><div id="vcScan" class="small"></div></details>
+      <p class="muted small">Jede Vokabel geht durch sieben Stufen: hören, langsam greifen, im Takt, drei Tonarten, im Stück, abwandeln, frei. Bei jedem Versuch speichert die App Töne, Fehler, Timing und Anschlag. Gelernt ist eine Vokabel, wenn sie an zwei Tagen in deinem freien Spiel vorkommt.</p>
     </div>
   </section>
 
@@ -3103,8 +3139,8 @@ function onMidi(e){
 
 /* ---------- Eingabe ---------- */
 const held=new Map();let active="home",lastInput=0;
-function noteOn(n,v,ts){ts=ts||performance.now();lastInput=performance.now();held.set(n,v);kbSet(n,"on",true);Rec.ev(ts,9,n,v);if(active==="player"&&HR.sel)HR.note(n);if(active==="song"&&Trainer.st)Trainer.note(n,true);if(active==="song"&&Licks.st)Licks.note(n,true);const M=Host.cur;if(!M||!M.on)return;if(!M.timed&&ts<busyUntil)return;M.on(n,v,ts)}
-function noteOff(n,ts){ts=ts||performance.now();held.delete(n);kbSet(n,"on",false);Rec.ev(ts,8,n,0);if(active==="song"&&Trainer.st)Trainer.note(n,false);const M=Host.cur;if(M&&M.off)M.off(n,ts)}
+function noteOn(n,v,ts){ts=ts||performance.now();lastInput=performance.now();held.set(n,v);kbSet(n,"on",true);Rec.ev(ts,9,n,v);if(active==="player"&&HR.sel)HR.note(n);if(active==="song"&&Trainer.st)Trainer.note(n,true);if(active==="song"&&Licks.st)Licks.note(n,true);if(active==="vocab"&&Vocab.st)Vocab.note(n,v,ts,true);const M=Host.cur;if(!M||!M.on)return;if(!M.timed&&ts<busyUntil)return;M.on(n,v,ts)}
+function noteOff(n,ts){ts=ts||performance.now();held.delete(n);kbSet(n,"on",false);Rec.ev(ts,8,n,0);if(active==="song"&&Trainer.st)Trainer.note(n,false);if(active==="vocab"&&Vocab.st)Vocab.note(n,0,ts,false);const M=Host.cur;if(M&&M.off)M.off(n,ts)}
 
 /* ---------- Klaviatur ---------- */
 const KB_LO=36,KB_HI=84,keyEls={};
@@ -4095,7 +4131,7 @@ const Rec={on:false,t0:0,events:[],bpm:80,beats:4,countIn:0,sched:null,nextBeat:
   async stop(save){if(!this.on)return null;this.on=false;clearInterval(this.sched);clearInterval(this.uiT);
     $("#recDot").classList.remove("on");$("#recBtn").textContent="Aufnahme starten";$("#recBeat").querySelectorAll("i").forEach(el=>el.classList.remove("on"));
     if(!save||this.notes===0){if(save)toast("Keine Töne aufgenommen");return null}
-    const id="r"+Date.now(),doc=this.build();await Store.put("recordings",id,doc);toast("Aufnahme gespeichert: "+fmt(doc.durationMs));loadLog();return id},
+    const id="r"+Date.now(),doc=this.build();await Store.put("recordings",id,doc);try{Vocab.scan()}catch(e){}toast("Aufnahme gespeichert: "+fmt(doc.durationMs));loadLog();return id},
   build(){const doc={createdAt:new Date().toISOString(),date:today(),label:this.label,bpm:this.bpm,beatsPerBar:this.beats,metronome:this.metro,countInMs:this.countIn,outputLatencyMs:this.lat,durationMs:Math.round(performance.now()-this.t0),noteCount:this.notes,
       format:"t_ms,status,note,value; t ab Beginn des Einzählens; status 9=an 8=aus 11=Pedal(CC64)",events:this.events.map(e=>e.join(",")).join(";")};
     if(doc.events.length>240000){doc.events=doc.events.slice(0,doc.events.lastIndexOf(";",240000));doc.truncated=true}return doc}
@@ -4447,6 +4483,258 @@ const Licks={st:null,ex:null,timer:null,bt:[],
   stop(){const was=this.st;this.st=null;clearInterval(this.timer);this.bt.forEach(clearTimeout);this.bt=[];if(was&&was.blues)stopAll();if($("#lkCard"))this.draw()}
 };
 
+/* ---------- Vokabelheft ---------- */
+/* Jede Vokabel durchläuft sieben Stufen, höchstens drei gleichzeitig in Arbeit. Alles, was am Klavier passiert, wird je Versuch protokolliert. */
+const VC_ST=["Hören und singen","Langsam greifen","Im Takt","Drei Tonarten","Im Stück","Abwandeln","Frei"];
+const VC_IV=[3,7,14,30,60];
+const VC_CTX={
+  blues:{name:"Blues in F",key:5,bpm:84,bars:[[0,"dom7"],[5,"dom7"],[0,"dom7"],[0,"dom7"],[5,"dom7"],[5,"dom7"],[0,"dom7"],[0,"dom7"],[7,"dom7"],[5,"dom7"],[0,"dom7"],[7,"dom7"]]},
+  iivi:{name:"II–V–I in F",key:5,bpm:84,bars:[[2,"m7"],[7,"dom7"],[0,"maj7"],[0,"maj7"]]},
+  autumn:{name:"Autumn Leaves, A-Teil",key:10,bpm:96,bars:[[2,"m7"],[7,"dom7"],[0,"maj7"],[5,"maj7"],[11,"m7b5"],[4,"dom7","7♭9"],[9,"m6"],[9,"m6"]]},
+  turn:{name:"I–VI–II–V in F",key:5,bpm:84,bars:[[0,"maj7"],[9,"dom7"],[2,"m7"],[7,"dom7"]]}};
+const VOC=[
+  {id:"h_blues",k:"h",name:"Blues-Shells",ctx:"blues",keys:[5,10,0],seq:[[0,"dom7",1],[5,"dom7",1],[0,"dom7",1],[7,"dom7",1]],tip:"Links der Grundton, rechts Terz und Septime. I7, IV7 und V7 sind das Gerüst jedes Blues."},
+  {id:"m_terz",k:"m",lick:0,ctx:"blues"},
+  {id:"m_abw",k:"m",lick:1,ctx:"blues"},
+  {id:"h_iivi",k:"h",name:"II–V–I in Dur",ctx:"autumn",keys:[10,3,5],seq:[[2,"m7",1],[7,"dom7",1],[0,"maj7",2]],tip:"Die wichtigste Folge im Jazz. Hör hin, wie die Septime des einen Akkords zur Terz des nächsten wird."},
+  {id:"m_arp",k:"m",name:"Akkord hinauf",ctx:"iivi",keys:[5,10,0],n:[[0,.5],[4,.5],[7,.5],[11,.5],[12,2]],tip:"Die Töne des Maj7-Akkords von unten nach oben. Grundbaustein für Linien über den I-Akkord."},
+  {id:"m_riff",k:"m",lick:3,ctx:"blues"},
+  {id:"h_lead",k:"h",name:"II–V–I mit kurzen Wegen",ctx:"autumn",keys:[10,3,5],lead:true,seq:[[2,"m7",1],[7,"dom7",1],[0,"maj7",2]],tip:"Dieselbe Folge, aber die rechte Hand bewegt sich bei jedem Wechsel höchstens zwei Halbtöne. So klingt Stimmführung."},
+  {id:"m_encl",k:"m",name:"Annäherung an die Terz",ctx:"iivi",keys:[5,10,0],n:[[5,.5],[3,.5],[4,2]],tip:"Von oben (fa) und von unten (me) auf die Terz (mi) zielen. Klingt sofort nach Jazz."},
+  {id:"h_minor",k:"h",name:"II–V–i in Moll",ctx:"autumn",keys:[7,2,0],minor:true,seq:[[2,"m7b5",1],[7,"dom7",1,"7♭9"],[0,"m6",2]],tip:"Die Moll-Kadenz aus Autumn Leaves: halbverminderter II, V mit ♭9, Moll-Tonika."},
+  {id:"m_blue",k:"m",lick:2,ctx:"blues"},
+  {id:"m_iiv",k:"m",name:"II–V-Linie",ctx:"iivi",keys:[5,10,0],n:[[2,.5],[4,.5],[5,.5],[9,.5],[11,1],[7,1]],tip:"Über den II-Akkord re mi fa la, dann auf die Terz des V (ti) und zu so. Die Linie macht die Akkorde hörbar."},
+  {id:"m_turn",k:"m",lick:6,ctx:"blues"},
+  {id:"m_end",k:"m",lick:7,ctx:"blues"},
+  {id:"h_turn",k:"h",name:"I–VI–II–V",ctx:"turn",keys:[5,10,3],seq:[[0,"maj7",1],[9,"dom7",1],[2,"m7",1],[7,"dom7",1]],tip:"Der Turnaround am Ende vieler Standards. Der VI als Dominante führt zum II."},
+  {id:"m_top",k:"m",lick:4,ctx:"blues"},
+  {id:"m_iv",k:"m",lick:5,ctx:"blues"}];
+VOC.forEach(v=>{if(v.lick!=null){const L=LICKS[v.lick];v.name=L.name;v.n=L.n;v.tip=L.tip;v.keys=[5,10,0]}v.home=v.keys[0]});
+const VOCI=Object.fromEntries(VOC.map(v=>[v.id,v]));
+const vcMed=a=>{if(!a.length)return null;const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+const vcMean=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
+const vcSd=a=>{const m=vcMean(a);return a.length>1?Math.sqrt(a.reduce((x,y)=>x+(y-m)*(y-m),0)/(a.length-1)):0};
+const vcSyl=v=>v.k==="m"?v.n.map(x=>lkSyl(x[0])).join(" "):v.seq.map(([d,t,b,sfx])=>hrRom(d,{dom7:"7",m7:"m7",maj7:"maj7",six:"Dur",m6:"Moll",m7b5:"ø",dim7:"°"}[t])).join(" – ");
+const vcChords=(v,k)=>v.seq.map(([d,t,b,sfx])=>({c:shCh(k+d,t,sfx),bars:b}));
+const vcEqT=(a,b)=>a===b||(["m6","dim7"].includes(a)&&["m6","dim7"].includes(b))||(["maj7","six"].includes(a)&&["maj7","six"].includes(b));
+
+/* Erkennen: melodische Vokabeln in einer Tonfolge, genau oder abgewandelt */
+function vcRhy(win,pat){if(win.length<3)return false;const io=win.slice(1).map((x,i)=>x.t-win[i].t),pd=pat.slice(0,win.length-1).map(x=>x[1]);const si=io.reduce((a,b)=>a+b,0),sp=pd.reduce((a,b)=>a+b,0);if(si<=0||sp<=0)return false;
+  return io.some((x,i)=>Math.abs(x/si-pd[i]/sp)>.17)}
+function vcFind(stream,pat,keyPc,loose){const L=pat.length,iv=pat.slice(1).map((x,i)=>x[0]-pat[i][0]),out=[],used=new Set(),canon=mod(pat[0][0],12);
+  const hit=(i,len,type)=>{for(let j=i;j<i+len;j++)used.add(j);out.push({t:stream[i].t,type})};
+  for(let i=0;i+L<=stream.length;i++){if(used.has(i))continue;let ok=true;for(let j=0;j<L-1;j++)if(stream[i+j+1].n-stream[i+j].n!==iv[j]){ok=false;break}
+    if(ok){const sp=mod(stream[i].n-keyPc,12);hit(i,L,keyPc!=null&&sp!==canon?"ton":vcRhy(stream.slice(i,i+L),pat)?"rhythmus":"genau");i+=L-1}}
+  if(!loose)return out;
+  if(L>=3)for(let i=0;i+L+1<=stream.length;i++){if([...Array(L+1).keys()].some(j=>used.has(i+j)))continue;const w=stream.slice(i,i+L+1);
+    for(let x=1;x<L;x++){const r=w.filter((_,j)=>j!==x);if(r.slice(1).every((y,j)=>y.n-r[j].n===iv[j])){hit(i,L+1,"mehr");break}}}
+  if(L>=4)for(let x=1;x<L-1;x++){const p2=pat.filter((_,j)=>j!==x),iv2=p2.slice(1).map((y,j)=>y[0]-p2[j][0]);
+    for(let i=0;i+L-1<=stream.length;i++){if([...Array(L-1).keys()].some(j=>used.has(i+j)))continue;if(iv2.every((d,j)=>stream[i+j+1].n-stream[i+j].n===d))hit(i,L-1,"weniger")}}
+  return out}
+/* Erkennen: Griffe (Grundton unten, Terz und Septime darüber) und Folgen */
+function vcClusters(ons){const cl=[];ons.forEach(o=>{const l=cl[cl.length-1];if(l&&o.t-l.t<90)l.n.push(o.n);else cl.push({t:o.t,n:[o.n]})});return cl.filter(c=>c.n.length>=3)}
+function vcClassify(notes){const s=[...new Set(notes)].sort((a,b)=>a-b),r=mod(s[0],12),rel=s.slice(1).map(n=>mod(n-r,12));
+  for(const t of SH_ORDER){const T=SHT[t],al=[0,...T.t,...(T.opt||[])];if(rel.every(x=>al.includes(x))&&rel.includes(T.t[0])&&rel.includes(T.t[1]))return {r,t,rh:s.slice(1)}}return null}
+function vcHarmCount(v,chords){if(v.id==="h_blues")return Math.floor(chords.filter(c=>c.t==="dom7").length/4);
+  const seq=v.seq,L=seq.length,ch=chords.filter((c,i)=>!i||c.r!==chords[i-1].r||c.t!==chords[i-1].t);let n=0;
+  for(let i=0;i+L<=ch.length;i++){let ok=true;for(let j=0;j<L;j++){const c=ch[i+j];if(!vcEqT(c.t,seq[j][1])){ok=false;break}if(j&&mod(c.r-ch[i].r,12)!==mod(seq[j][0]-seq[0][0],12)){ok=false;break}if(v.lead&&j&&shLeap(ch[i+j-1].rh,c.rh)>2){ok=false;break}}if(ok){n++;i+=L-1}}return n}
+function vcParse(rec){return String(rec.events||"").split(";").map(x=>x.split(",").map(Number)).filter(e=>e.length===4&&e[1]===9&&e[3]>0).map(e=>({t:e[0],n:e[2],v:e[3]})).sort((a,b)=>a.t-b.t)}
+function vcScanRec(rec){const ons=vcParse(rec),rh=ons.filter(o=>o.n>=55),chords=vcClusters(ons).map(c=>{const x=vcClassify(c.n);return x?Object.assign(x,{at:c.t}):null}).filter(Boolean),f={};
+  VOC.forEach(v=>{const c=v.k==="m"?vcFind(rh,v.n,null,true).filter(x=>x.type!=="weniger").length:vcHarmCount(v,chords);if(c)f[v.id]=c});return f}
+
+const Vocab={st:null,ex:null,timer:null,bt:[],loopEv:[],
+  get V(){if(!S.vocab||typeof S.vocab!=="object")S.vocab={};const V=S.vocab;V.items=V.items||{};V.scan=V.scan||{};return V},
+  it(id){const I=this.V.items;return I[id]=I[id]||{st:null,runs:{},hist:[],bpm:70}},
+  started(id){const x=this.V.items[id];return !!(x&&x.st!=null)},
+  order(){const o=Array.isArray(this.V.order)?this.V.order.filter(id=>VOCI[id]):[];return o.concat(VOC.map(x=>x.id).filter(id=>!o.includes(id)))},
+  work(){return this.order().filter(id=>this.started(id)&&this.it(id).st<6)},
+  waiting(){return this.order().filter(id=>this.started(id)&&this.it(id).st===6)},
+  learned(){return this.order().filter(id=>this.started(id)&&this.it(id).st>=7)},
+  due(){return this.learned().filter(id=>(this.it(id).due||"")<=today())},
+  begin(id){const x=this.it(id);x.st=0;x.since=today();x.runs={};x.lastAt=0;toast("Neue Vokabel: "+VOCI[id].name)},
+  ensure(){let ch=false;const W=this.work();if(!this.order().some(id=>this.started(id))){this.begin(this.order()[0]);ch=true}
+    let w=this.work();while(w.length<3&&w.every(id=>this.it(id).st>=2)){const nx=this.order().find(id=>!this.started(id));if(!nx)break;this.begin(nx);ch=true;w=this.work()}
+    if(ch)saveSettings();return ch},
+  pick(){this.ensure();const d=this.due();if(d.length)return {id:d[0],review:true};const w=this.work().sort((a,b)=>(this.it(a).lastAt||0)-(this.it(b).lastAt||0));if(w.length)return {id:w[0]};const q=this.waiting();return q.length?{id:q[0]}:null},
+  nextText(){const p=this.pick();if(!p)return "Alle Vokabeln gelernt.";const v=VOCI[p.id],x=this.it(p.id);if(p.review)return "Vokabelheft: Wiederholung „"+v.name+"“, ein Durchgang im Takt.";
+    return "Vokabelheft: „"+v.name+"“, Stufe "+(x.st+1)+" von 7: "+VC_ST[x.st]+"."},
+  auto(){const p=this.pick();this.ex=p?Object.assign({},p):null;this.render();const c=$("#vcEx");if(c&&!c.hidden)c.scrollIntoView({behavior:"smooth",block:"start"})},
+  /* ---- Protokoll ---- */
+  log(id,o){const x=this.it(id);x.hist=(x.hist||[]).concat([Object.assign({d:today(),st:this.ex&&this.ex.review?"W":x.st},o)]).slice(-40);x.lastAt=Date.now();saveSettings()},
+  tech(id){const h=(this.it(id).hist||[]).filter(e=>e.dev!=null);if(!h.length)return "";const a=h.slice(-4),b=h.slice(-8,-4),ma=vcMed(a.map(e=>e.dev)),mb=b.length?vcMed(b.map(e=>e.dev)):null,bias=vcMean(a.map(e=>e.bias||0)),vs=vcMean(a.map(e=>e.vsd||0));
+    return "Timing ±"+Math.round(ma)+" ms"+(mb!=null?(ma<mb-5?" (besser, vorher ±"+Math.round(mb)+")":ma>mb+5?" (schlechter, vorher ±"+Math.round(mb)+")":" (gleich)"):"")+(Math.abs(bias)>25?", eher "+(bias<0?"zu früh":"zu spät"):"")+" · Anschlag "+(vs<9?"gleichmäßig":vs<16?"etwas ungleich":"ungleich")+" (Streuung "+Math.round(vs)+")"},
+  /* ---- Stufen ---- */
+  passStage(id){const v=VOCI[id],x=this.it(id);this.stop();x.runs={};bonus(20);burst(60);chime();
+    if(x.st>=6){x.st=7;x.learned=today();x.iv=0;x.due=addDays(today(),VC_IV[0]);x.fails=0;toast("Gelernt: "+v.name+". Kommt in 3 Tagen zur Wiederholung.");say("Gelernt.")}
+    else{x.st++;if(x.st===6)x.s6=today();toast(v.name+": weiter mit "+VC_ST[x.st]);say("Geschafft.")}
+    this.ensure();saveSettings();if(x.st===6)this.scan();this.ex={id};this.render()},
+  review(id,ok){const x=this.it(id),v=VOCI[id];this.stop();if(ok){x.iv=Math.min((x.iv||0)+1,VC_IV.length-1);x.due=addDays(today(),VC_IV[x.iv]);x.bpm=Math.min(132,(x.bpm||70)+5);x.fails=0;bonus(10);good();toast("Wiederholung bestanden. Nächste in "+VC_IV[x.iv]+" Tagen, Tempo jetzt "+x.bpm+".")}
+    else{x.fails=(x.fails||0)+1;x.due=addDays(today(),1);if(x.fails>=2){x.st=3;x.runs={};x.fails=0;toast(v.name+" geht zurück in die Arbeit, Stufe 4 von 7.")}else toast("Nicht ganz. Morgen noch einmal.")}
+    saveSettings();this.ex=this.pick();this.render()},
+  need(x){return [2,2,2,0,3,3,2][x.st]},
+  /* ---- Ansicht ---- */
+  render(){const box=$("#vcWork");if(!box)return;this.ensure();if(!this.ex)this.ex=this.pick();const V=this.V,W=this.work(),Q=this.waiting(),Lr=this.learned(),D=this.due();
+    $("#vcSum").textContent="Wortschatz: "+Lr.length+" gelernt · "+W.length+" in Arbeit"+(Q.length?" · "+Q.length+" warten aufs freie Spiel":"")+(D.length?" · "+D.length+" Wiederholung"+(D.length>1?"en":"")+" fällig":"");
+    const nt=$("#vcNote");nt.hidden=!V.note;nt.textContent=V.note?"Hinweis aus der Wochenauswertung: "+V.note:"";
+    const ladder=x=>'<div class="vcl">'+VC_ST.map((s,i)=>'<span class="'+(x.st>i?"done":x.st===i?"cur":"")+'" title="'+s+'">'+(i+1)+'</span>').join("")+'</div>';
+    const row=(id,btn)=>{const v=VOCI[id],x=this.it(id),tc=this.tech(id);return '<div class="vcitem'+(this.ex&&this.ex.id===id?" on":"")+'"><div class="row"><b>'+esc(v.name)+'</b><span class="tag">'+(v.k==="h"?"Harmonie":"Melodie")+'</span><span class="small muted mono">'+esc(vcSyl(v))+'</span></div>'+ladder(x)+
+      '<p class="small">'+(x.st<7?"Stufe "+(x.st+1)+": "+VC_ST[x.st]:"gelernt am "+x.learned.split("-").reverse().join(".")+", Wiederholung "+(x.due<=today()?"fällig":"am "+x.due.split("-").reverse().slice(0,2).join(".")))+(tc?'<br><span class="muted">'+tc+'</span>':'')+'</p><button class="btn'+(btn?" primary":"")+'" type="button" data-vx="'+id+'">'+(x.st>=7?"Wiederholen":"Üben")+'</button></div>'};
+    const pk=this.pick();box.innerHTML=W.concat(Q).map(id=>row(id,pk&&pk.id===id)).join("")||'<p class="small muted">Noch nichts in Arbeit.</p>';
+    const nx=this.order().filter(id=>!this.started(id)).slice(0,2);
+    box.innerHTML+='<p class="small muted">Als Nächstes: '+(nx.map(id=>esc(VOCI[id].name)).join(", ")||"nichts mehr")+'. Eine neue Vokabel kommt dazu, wenn alle aktiven mindestens auf Stufe 3 sind, höchstens drei gleichzeitig.</p>';
+    $("#vcLearned").innerHTML=Lr.length?Lr.map(id=>row(id,D.includes(id))).join(""):'<p class="small muted">Noch keine. Eine Vokabel gilt als gelernt, wenn sie an zwei Tagen in deinem freien Spiel vorkommt.</p>';
+    $("#vcAll").innerHTML=this.order().map(id=>{const v=VOCI[id],x=this.V.items[id];return '<li>'+esc(v.name)+' <span class="tag">'+(v.k==="h"?"Harmonie":"Melodie")+'</span> <span class="small muted">'+(x&&x.st!=null?(x.st>=7?"gelernt":"Stufe "+(x.st+1)):"noch nicht")+'</span></li>'}).join("");
+    const sc=Object.entries(V.scan).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,8);
+    $("#vcScan").innerHTML=sc.length?sc.map(([rid,o])=>'<div>'+(o.d||"").split("-").reverse().slice(0,2).join(".")+' '+esc(o.l||"")+': '+(Object.keys(o.f||{}).length?Object.entries(o.f).map(([id,c])=>esc(VOCI[id]?VOCI[id].name:id)+" "+c+"×").join(", "):"keine Vokabel erkannt")+'</div>').join(""):"Noch keine freien Aufnahmen ausgewertet.";
+    document.querySelectorAll("[data-vx]").forEach(b=>b.onclick=()=>{this.stop();const id=b.dataset.vx;this.ex={id,review:this.it(id).st>=7};this.render();$("#vcEx").scrollIntoView({behavior:"smooth",block:"start"})});
+    this.renderEx()},
+  renderEx(){const card=$("#vcEx");if(!card)return;if(!this.ex||!VOCI[this.ex.id]){card.hidden=true;return}card.hidden=false;const id=this.ex.id,v=VOCI[id],x=this.it(id),st=this.st;
+    const s=this.ex.review?"W":x.st,piano=LOCAL||hasPiano;
+    $("#vcStep").textContent=(this.ex.review?"Wiederholung":"Stufe "+(x.st+1)+" von 7 · "+VC_ST[x.st])+" · "+(v.k==="h"?"Harmonie":"Melodie");
+    $("#vcHead").textContent=v.name;
+    const ctx=VC_CTX[v.ctx],need=this.need(x),runs=s===3?v.keys.filter(k=>x.runs["k"+k]).length:(x.runs.n||0);
+    const how={0:v.k==="m"?"Hör dir die Phrase an und sing sie auf Silben nach, bis du sie ohne Abspielen singen kannst. Dann „Geschafft“. Zweimal.":"Hör dir die Folge an. Sing den Grundton mit, dann die obere Stimme. „Geschafft“, wenn du beide ohne Abspielen singen kannst. Zweimal.",
+      1:v.k==="m"?"Spiel die Phrase rechts in "+KEYNAME[v.home]+", ohne Takt, Oktave egal. Die App wartet auf jeden Ton. Zwei Durchgänge ohne falschen Ton.":"Greif die Akkorde der Reihe nach, links Grundton, rechts Terz und Septime. Ohne Takt, die App wartet auf jeden Griff."+(v.lead?" Rechts höchstens zwei Halbtöne pro Wechsel.":"")+" Zwei Durchgänge ohne Fehlgriff.",
+      2:"Jetzt im Takt, "+x.bpm+" BPM. Ein Takt wird eingezählt."+(v.k==="m"?" Fang auf einer Zählzeit an, die App misst, wie genau deine Töne liegen.":" Jeder Griff muss spätestens auf der Zwei-und liegen.")+" Zwei saubere Durchgänge.",
+      3:"Im Takt in drei Tonarten: "+v.keys.map(k=>KEYNAME[k]).join(", ")+". Je ein sauberer Durchgang.",
+      4:v.k==="m"?ctx.name+" läuft in Schleife. Bau die Phrase dreimal ein, in mindestens zwei Durchgängen. Dazwischen frei spielen oder Pause lassen. Die App erkennt die Phrase.":ctx.name+" läuft in Schleife, nur Bass und Schlagzeug. Greif die Akkorde der Form, jeden auf der Eins. Ein Durchgang mit höchstens einem verpassten Takt.",
+      5:v.k==="m"?"Wieder in der Schleife, aber jedes Mal anders: anderer Rhythmus, ein Ton mehr oder weniger oder ein anderer Anfangston. Die App erkennt drei Abwandlungen.":"Wieder in der Schleife, aber rhythmisch: Griffe vorziehen (vor der Eins), zweimal pro Takt anschlagen oder die Lage wechseln (Terz oben statt Septime oben). Ein Durchgang mit mindestens drei solchen Takten.",
+      6:"Jetzt kommt es aufs freie Spiel an. Nimm im Block „Freies Spiel“ oder im Reiter Aufnahme frei auf, ohne an die Übung zu denken. Taucht die Vokabel an zwei Tagen auf, gilt sie als gelernt.",
+      W:"Ein Durchgang im Takt in einer zufälligen Tonart, "+x.bpm+" BPM."}[s];
+    $("#vcHow").textContent=v.tip+" "+how;
+    let ctl='';const btn=(i,t,p)=>'<button class="btn'+(p?" primary":"")+'" id="'+i+'" type="button">'+t+'</button>';
+    if(s===0)ctl=btn("vcSelf","Geschafft",1);
+    else if(s===1)ctl=btn("vcGo",st?"Stoppen":"Starten",1);
+    else if(s===2||s===3||s==="W")ctl=btn("vcGo",st?"Stoppen":"Starten",1)+'<button class="linkbtn" id="vcSlow" type="button">−5</button><span class="mono small">'+x.bpm+' BPM</span><button class="linkbtn" id="vcFast" type="button">+5</button>';
+    else if(s===4||s===5)ctl=btn("vcGo",st?"Begleitung stoppen":"Begleitung starten",1)+'<button class="linkbtn" id="vcSlow" type="button">−5</button><span class="mono small">'+this.loopBpm(x,v)+' BPM</span><button class="linkbtn" id="vcFast" type="button">+5</button>';
+    else if(s===6){const ds=this.foundDates(id);ctl=btn("vcScanBtn","Aufnahmen jetzt durchsuchen",1)+'<span class="small muted">Gefunden an '+ds.length+' von 2 Tagen'+(ds.length?" ("+ds.map(d=>d.split("-").reverse().slice(0,2).join(".")).join(", ")+")":"")+'</span>'}
+    ctl+=btn("vcHear","Anhören");
+    if(s!=="W")ctl+='<span class="small muted">'+(s===6?"":runs+" von "+(s===3?v.keys.length:need))+'</span>'+(s<6?'<button class="linkbtn small" id="vcSkip" type="button">Kann ich schon</button>':'<button class="linkbtn small" id="vcSkip" type="button">Als gelernt markieren</button>');
+    const warn=s!==0&&s!==6&&!piano?'<p class="small fb no">Das geht nur am Klavier, am Mac in Chrome.</p>':'';
+    $("#vcCtl").innerHTML=warn+'<div class="row">'+ctl+'</div>';
+    const on=(i,f)=>{const e=$("#"+i);if(e)e.onclick=f};
+    on("vcSelf",()=>{ac();lastInput=performance.now();x.runs.n=(x.runs.n||0)+1;this.log(id,{ok:true,self:true});good();if(x.runs.n>=2)return this.passStage(id);this.renderEx()});
+    on("vcGo",()=>{ac();lastInput=performance.now();if(this.st)this.stop();else this.start()});
+    on("vcHear",()=>{ac();lastInput=performance.now();this.hear(v,this.st&&this.st.k!=null?this.st.k:v.home)});
+    on("vcSlow",()=>{if(s===4||s===5)x.lbpm=Math.max(50,this.loopBpm(x,v)-5);else x.bpm=Math.max(40,x.bpm-5);saveSettings();this.renderEx()});
+    on("vcFast",()=>{if(s===4||s===5)x.lbpm=Math.min(160,this.loopBpm(x,v)+5);else x.bpm=Math.min(160,x.bpm+5);saveSettings();this.renderEx()});
+    on("vcScanBtn",async()=>{await this.scan(true);this.render()});
+    on("vcSkip",()=>{const b=$("#vcSkip");if(!b.dataset.sure){b.dataset.sure=1;b.textContent="Sicher? Nochmal tippen.";return}this.log(id,{ok:true,skip:true});this.passStage(id)});
+    this.draw()},
+  loopBpm(x,v){return x.lbpm||Math.min(VC_CTX[v.ctx].bpm,(x.bpm||70)+10)},
+  draw(){const el=$("#vcStage");if(!el||!this.ex)return;const v=VOCI[this.ex.id],st=this.st,x=this.it(this.ex.id);const k=st&&st.k!=null?st.k:v.home;
+    const fb='<div class="fb '+(st&&st.fbc||"")+'">'+esc(st&&st.fb||"")+'</div>';
+    if(st&&st.mode==="loop"){const C=st.ctx;el.innerHTML='<div class="stage"><div class="muted small">'+esc(C.name)+' · Takt '+(st.bar+1)+' von '+C.bars.length+' · Durchgang '+(st.chorus+1)+'</div><div class="chord">'+esc(st.bar>=0?shName(shCh(C.key+C.bars[st.bar][0],C.bars[st.bar][1],C.bars[st.bar][2])):"·")+'</div><div class="lkbars" style="grid-template-columns:repeat('+C.bars.length+',minmax(0,1fr))">'+C.bars.map((b,i)=>'<span class="'+(st.bres&&st.bres[i]===1?"me":"")+(i===st.bar?" cur":"")+'">'+esc(shName(shCh(C.key+b[0],b[1],b[2])))+'</span>').join("")+'</div>'+
+      (v.k==="m"?'<div class="lkline">'+v.n.map(n=>'<span class="lksyl">'+lkSyl(n[0])+'</span>').join("")+'</div>':'')+'<div class="small">'+(st.found||[]).slice(-6).map(f=>esc(f)).join(" · ")+'</div>'+fb+'</div>';return}
+    if(v.k==="m"){const i=st?(st.mode==="mel-u"?st.i:(st.got||[]).length):0;el.innerHTML='<div class="stage"><div class="muted small">Tonart '+KEYNAME[k]+' · do = '+KEYNAME[k]+(st&&st.mode==="mel-t"?" · "+st.bpm+" BPM":"")+'</div><div class="lkline">'+v.n.map((n,j)=>'<span class="lksyl'+(st&&j<i?" ok":"")+'">'+lkSyl(n[0])+'</span>').join("")+'</div>'+fb+'</div>';return}
+    const ch=vcChords(v,k),ci=st&&st.ci!=null?Math.min(st.ci,(st.seq||ch).length-1):0,seq=st&&st.seq?st.seq:ch.map(c=>c);
+    el.innerHTML='<div class="stage"><div class="muted small">Tonart '+KEYNAME[k]+(st&&st.mode==="harm-t"?" · "+st.bpm+" BPM":"")+'</div><div class="chord">'+esc(shName(seq[ci].c))+'</div><div class="small muted">'+(seq[ci+1]?"danach "+esc(shName(seq[ci+1].c)):"Schluss")+'</div><div class="lkline">'+seq.map((c,j)=>'<span class="lksyl'+(st&&st.res&&st.res[j]===1?" ok":"")+'">'+esc(shName(c.c))+'</span>').join(" ")+'</div>'+fb+'</div>'},
+  hear(v,k){if(v.k==="m"){const ev=Licks.ev({n:v.n},k,80),t0=Licks.tonic(k),end=ev.reduce((a,e)=>Math.max(a,e.t+e.d),0);ev.push({n:t0-24,t:0,d:end,v:46});playSeq(ev,true);return}
+    const b=60/80;let t=0,prev=null;const ev=[];vcChords(v,k).forEach(({c,bars})=>{const rh=shVoice(c,prev);prev=rh;const d=bars*4*b;ev.push({n:shRoot(c),t,d:d*.95,v:66});rh.forEach(n=>ev.push({n,t,d:d*.95,v:58}));t+=d});playSeq(ev,true)},
+  /* ---- Übungen ---- */
+  start(){const id=this.ex.id,v=VOCI[id],x=this.it(id),s=this.ex.review?"W":x.st;if(!(LOCAL||hasPiano)){toast("Das geht nur am Klavier");return}
+    let k=v.home;if(s===3){const left=v.keys.filter(q=>!x.runs["k"+q]);k=left.length?left[0]:v.home}if(s==="W")k=rnd(v.keys);
+    if(s===1){this.st=v.k==="m"?{mode:"mel-u",k,i:0,errs:0,t0:0,fb:"Leg los. Tonart "+KEYNAME[k]+".",fbc:""}:{mode:"harm-u",k,seq:vcChords(v,k),ci:0,errs:0,shown:performance.now(),ms:[],prev:null,res:[],fb:"Greif "+shName(vcChords(v,k)[0].c)+".",fbc:""};say("In "+DE[k]+".",true);this.renderEx();return}
+    if(s===4||s===5)return this.loop();
+    this.timed(k,x.bpm)},
+  timed(k,bpm){const v=VOCI[this.ex.id],beat=60/bpm;Metro.meter=4;Metro.start(bpm,true);const beatMs=beat*1000;
+    if(v.k==="m"){const ev=Licks.ev({n:v.n},k,bpm);this.st={mode:"mel-t",k,bpm,beatMs,exp:ev.map(e=>e.t*1000),pcs:v.n.map(n=>mod(Licks.tonic(k)+n[0],12)),got:[],base:null,fb:"Einzählen … dann ab einer Eins spielen.",fbc:""}}
+    else{const ch=vcChords(v,k),one=ch.reduce((a,c)=>a+c.bars*4,0),reps=one>=16?1:2,seq=[];let b=0;for(let r=0;r<reps;r++)ch.forEach(c=>{seq.push({c:c.c,b0:b,beats:c.bars*4});b+=c.bars*4});
+      this.st={mode:"harm-t",k,bpm,beatMs,seq,total:b,ci:0,res:[],got:[],dev:[],wrong:[],wt:[],prev:null,vel:[],fb:"Einzählen …",fbc:""}}
+    if(k!==VOCI[this.ex.id].home)say("Tonart "+DE[k]+".",true);
+    clearInterval(this.timer);this.timer=setInterval(()=>this.tick(),40);this.renderEx()},
+  tick(){const st=this.st;if(!st)return;const now=performance.now();
+    if(st.mode==="mel-t"){if(st.base!=null&&now>st.base+st.exp[st.exp.length-1]+8*st.beatMs){this.melFail("Abgebrochen. Neu ab einer Eins.")}return}
+    if(st.mode==="harm-t"){const bt=(now-Metro.t0p)/st.beatMs;if(bt<-0.5)return;const tg=st.seq.findIndex((x,j)=>st.got[j]===undefined&&bt+.5<x.b0+x.beats&&bt>=x.b0-.75);
+      if(tg>=0){this.harmCheck(tg,bt,now)}
+      st.seq.forEach((x,j)=>{if(st.res[j]!==undefined)return;if(st.got[j]!==undefined&&bt>=x.b0+.5){st.res[j]=st.got[j]<=x.b0+.5?1:0;if(!st.res[j]){st.fb=shName(x.c)+" zu spät";st.fbc="no"}}else if(bt>=x.b0+x.beats){st.res[j]=0;st.fb=shName(x.c)+" verpasst";st.fbc="no"}});
+      const ci=st.seq.findIndex(x=>bt<x.b0+x.beats);if(ci!==st.ci&&ci>=0){st.ci=ci;this.draw()}
+      if(bt>=st.total)this.harmEnd()}},
+  harmCheck(j,bt,now){const st=this.st,x=st.seq[j],H=[...held.keys()],m=shMatch(H,x.c),v=VOCI[this.ex.id];
+    if(m.ok){const rh=shRH(H,x.c);if(v.lead&&st.prev&&shLeap(st.prev,rh)>2){if(!st.wrong[j]){st.wrong[j]=1;st.fb="Zu weiter Weg rechts ("+shLeap(st.prev,rh)+" Halbtöne)";st.fbc="no";this.draw()}return}
+      st.got[j]=bt;st.dev[j]=(bt-x.b0)*st.beatMs;st.prev=rh;H.forEach(n=>st.vel.push(held.get(n)||0));if(bt<=x.b0+.5){st.fb="✓";st.fbc="ok"}this.draw();return}
+    if(m.wrong&&H.length>=3){if(!st.wt[j])st.wt[j]=now;else if(now-st.wt[j]>450&&!st.wrong[j]){st.wrong[j]=1;st.fb="Fehlgriff bei "+shName(x.c)+": "+shWrong(H,x.c).join(", ");st.fbc="no";this.draw()}}else st.wt[j]=0},
+  harmEnd(){const st=this.st,id=this.ex.id,x=this.it(id),v=VOCI[id];clearInterval(this.timer);Metro.stop();const n=st.seq.length,miss=st.res.filter(r=>!r).length,wr=st.wrong.filter(Boolean).length;
+    const devs=st.dev.filter((d,j)=>d!=null&&st.res[j]===1).map(Math.abs),ok=miss<=(n>=8?1:0)&&wr<=1;
+    this.log(id,{ok,k:st.k,bpm:st.bpm,err:miss+wr,dev:devs.length?Math.round(vcMed(devs)):null,bias:devs.length?Math.round(vcMean(st.dev.filter((d,j)=>d!=null&&st.res[j]===1))):null,vel:Math.round(vcMean(st.vel)||0),vsd:Math.round(vcSd(st.vel))});
+    this.st=null;if(this.ex.review)return this.review(id,ok);
+    if(ok){if(x.st===3)x.runs["k"+st.k]=1;else x.runs.n=(x.runs.n||0)+1;good()}else bad();saveSettings();
+    if(x.st===3?v.keys.every(q=>x.runs["k"+q]):(x.runs.n||0)>=this.need(x))return this.passStage(id);
+    this.renderEx();const f=$("#vcStage .fb");if(f){f.className="fb "+(ok?"ok":"no");f.textContent=(ok?"Sauber":"Noch nicht: "+miss+" Takt"+(miss===1?"":"e")+" zu spät oder verpasst"+(wr?", "+wr+" Fehlgriff"+(wr>1?"e":""):""))+(devs.length?". Timing ±"+Math.round(vcMed(devs))+" ms.":".")+" Nochmal starten."}},
+  melFail(msg){const st=this.st;st.errs=(st.errs||0)+1;st.got=[];st.base=null;st.fb=msg;st.fbc="no";this.draw()},
+  melEnd(){const st=this.st,id=this.ex.id,x=this.it(id),v=VOCI[id];const d=st.got.map((g,i)=>g.ts-(st.base+st.exp[i])),ad=d.map(Math.abs),med=vcMed(ad),mx=Math.max(...ad),vel=st.got.map(g=>g.v);
+    const ok=med<=110&&mx<=260;clearInterval(this.timer);Metro.stop();
+    this.log(id,{ok,k:st.k,bpm:st.bpm,err:st.errs||0,dev:Math.round(med),bias:Math.round(vcMean(d)),vel:Math.round(vcMean(vel)),vsd:Math.round(vcSd(vel))});
+    this.st=null;if(this.ex.review)return this.review(id,ok);
+    if(ok){if(x.st===3)x.runs["k"+st.k]=1;else x.runs.n=(x.runs.n||0)+1;good()}else bad();saveSettings();
+    if(x.st===3?v.keys.every(q=>x.runs["k"+q]):(x.runs.n||0)>=this.need(x))return this.passStage(id);
+    const bias=vcMean(d);this.renderEx();const f=$("#vcStage .fb");if(f){f.className="fb "+(ok?"ok":"no");f.textContent=(ok?"Sauber im Takt":"Töne richtig, Timing noch zu ungenau")+": ±"+Math.round(med)+" ms"+(Math.abs(bias)>25?", eher "+(bias<0?"zu früh":"zu spät"):"")+". Nochmal starten."}},
+  /* ---- Schleife für Stufe 4 und 5 ---- */
+  loop(){const id=this.ex.id,v=VOCI[id],x=this.it(id),C=VC_CTX[v.ctx],bpm=this.loopBpm(x,v),b=60/bpm,c=ac();this.stopSound();
+    this.st={mode:"loop",ctx:C,k:C.key,bpm,beatMs:b*1000,bar:-1,chorus:0,bars:[],rh:[],ons:[],found:[],hits:[],bres:[],bb:[],prev:null,t0:performance.now(),fb:"Einzählen …",fbc:""};
+    this.loopEv=[];const st=this.st;let t=c.currentTime+.15;for(let i=0;i<4;i++)click(t+i*b,i===0);t+=4*b;let bar=0,ch=0;const harm=v.k==="h";
+    const sched=()=>{if(this.st!==st)return;while(t<ac().currentTime+.4){const [d,ty,sfx]=C.bars[bar],cc=shCh(C.key+d,ty,sfx),root=41+mod(cc.r-41,12),ev=[];
+        [0,1,2,3].forEach(j=>{ev.push({n:j===2?root+7:root,t:t+j*b,d:b*.85,v:harm?62:78});hat(t+j*b,.05,.12);if(j%2)hat(t+(j+.667)*b,.035,.08)});
+        if(!harm){const sh=shVoice(cc,st.prevV);st.prevV=sh;[0,1.667].forEach(o=>sh.forEach(n=>ev.push({n,t:t+o*b,d:b*.6,v:50})))}playAt(ev);
+        const pv=st.bars[st.bars.length-1];st.bars.push({p:a2p(t),i:bar,ch,c:cc,same:!!pv&&pv.c.r===cc.r&&pv.c.t===cc.t});const bi=bar,chi=ch,tt=t;this.bt.push(setTimeout(()=>{if(this.st===st){st.bar=bi;st.chorus=chi;if(bi===0&&chi>0)setTimeout(()=>{if(this.st===st)this.chorusEnd(chi-1)},st.beatMs*.7);this.draw()}},Math.max(0,(tt-ac().currentTime)*1000)));
+        t+=4*b;bar++;if(bar>=C.bars.length){bar=0;ch++}}};
+    sched();this.timer=setInterval(()=>{sched();if(harm)this.loopHarmTick()},40);this.renderEx()},
+  loopNote(n,v,ts){const st=this.st,id=this.ex.id,V=VOCI[id];this.loopEv.push([Math.round(ts-st.t0),9,n,v]);st.ons.push({n,t:ts,v});
+    if(V.k==="m"){if(n<55)return;st.rh.push({n,t:ts,v});if(st.rh.length>40)st.rh.shift();const res=vcFind(st.rh,V.n,st.k,this.it(id).st===5);
+      res.forEach(r=>{if(st.hits.some(h=>Math.abs(h.t-r.t)<1))return;const bar=st.bars.filter(b=>b.p<=r.t+80).pop();r.ch=bar?bar.ch:0;st.hits.push(r);
+        const txt={genau:"genau",rhythmus:"anderer Rhythmus",ton:"anderer Anfangston",mehr:"ein Ton mehr",weniger:"ein Ton weniger"}[r.type];st.found.push("Takt "+(bar?bar.i+1:"?")+": "+txt);good();this.loopCheck()});this.draw()}},
+  loopCheck(){const st=this.st,id=this.ex.id,x=this.it(id);if(x.st===4){const h=st.hits.filter(r=>r.type==="genau"||r.type==="rhythmus");x.runs.n=h.length;if(h.length>=3&&new Set(h.map(r=>r.ch)).size>=2)return this.loopPass()}
+    if(x.st===5){const h=st.hits.filter(r=>r.type!=="genau");x.runs.n=h.length;if(h.length>=3)return this.loopPass()}this.renderEx()},
+  loopHarmTick(){const st=this.st;if(!st||!st.bars.length)return;const now=performance.now(),H=[...held.keys()],V=VOCI[this.ex.id];
+    st.bars.forEach((B,j)=>{if(B.done)return;const w0=B.p-.75*st.beatMs,w1=B.p+.5*st.beatMs;if(now<w0)return;
+      if(B.got==null&&now<=B.p+st.beatMs){const m=shMatch(H,B.c);if(m.ok){const rh=shRH(H,B.c);if(!(V.lead&&st.prev&&shLeap(st.prev,rh)>2)){B.got=now;B.dev=now-B.p;B.top=Math.max(...rh);st.prev=rh}}}
+      if(now>B.p+4*st.beatMs){B.done=true;B.ok=B.got!=null&&B.got<=w1;B.att=st.ons.filter(o=>o.n>=52&&o.t>=B.p-.75*st.beatMs&&o.t<B.p+3.25*st.beatMs).reduce((a,o,i,arr)=>a+(i===0||o.t-arr[i-1].t>90?1:0),0);
+        B.antic=!B.same&&B.got!=null&&B.got<B.p-.15*st.beatMs;B.terz=B.top!=null&&mod(B.top-B.c.r,12)===SHT[B.c.t].t[0];st.bres[B.i]=B.ok?1:0;
+        if(!B.ok){st.fb="Takt "+(B.i+1)+": "+shName(B.c)+(B.got!=null?" zu spät":" nicht gegriffen");st.fbc="no"}else{st.fb="";st.fbc=""}}})},
+  chorusEnd(ch){const st=this.st,id=this.ex.id,x=this.it(id),V=VOCI[id];if(V.k!=="h")return;const C=st.ctx,minBars=C.bars.length<8?C.bars.length*2:C.bars.length;
+    const B=st.bars.filter(b=>b.done&&b.ch<=ch).slice(-minBars);if(B.length<minBars)return;const ok=B.filter(b=>b.ok),r=ok.length/B.length;
+    const anders=ok.filter(b=>b.att>=2||b.antic).length+(ok.filter(b=>b.terz).length>=2&&ok.filter(b=>!b.terz).length>=2?2:0);
+    const devs=ok.filter(b=>!b.same&&b.dev!=null).map(b=>b.dev),vel=st.ons.filter(o=>o.n>=52).slice(-60).map(o=>o.v);
+    this.log(id,{ok:x.st===4?r>=.9:r>=.75&&anders>=3,k:st.k,bpm:st.bpm,err:B.length-ok.length,dev:devs.length?Math.round(vcMed(devs.map(Math.abs))):null,bias:devs.length?Math.round(vcMean(devs)):null,vel:Math.round(vcMean(vel)||0),vsd:Math.round(vcSd(vel)),loop:true,anders});
+    if(x.st===4&&r>=.9)return this.loopPass();if(x.st===5&&r>=.75&&anders>=3)return this.loopPass();
+    st.found.push("Durchgang "+(ch+1)+": "+ok.length+" von "+B.length+" Takten"+(x.st===5?", "+anders+" anders":""));x.runs.n=x.st===5?anders:ok.length;this.renderEx()},
+  loopPass(){const id=this.ex.id,st=this.st;if(st&&VOCI[id].k==="m"){const dv=st.hits.map(h=>{const b=st.bars.filter(q=>q.p<=h.t+80).pop();if(!b)return null;const q=(h.t-b.p)/(st.beatMs/2);return (q-Math.round(q))*st.beatMs/2}).filter(x=>x!=null);
+      const vel=st.rh.map(o=>o.v);this.log(id,{ok:true,k:st.k,bpm:st.bpm,dev:dv.length?Math.round(vcMed(dv.map(Math.abs))):null,bias:dv.length?Math.round(vcMean(dv)):null,vel:Math.round(vcMean(vel)||0),vsd:Math.round(vcSd(vel)),loop:true,hits:st.hits.map(h=>h.type)})}
+    this.saveLoop();this.passStage(id)},
+  saveLoop(){const st=this.st;if(!st||this.loopEv.length<10)return;const id=this.ex.id,x=this.it(id),rid="r"+Date.now();
+    const doc={createdAt:new Date().toISOString(),date:today(),label:"Vokabelheft: "+VOCI[id].name+", "+VC_ST[x.st],vocab:id,stage:x.st,context:st.ctx.name,key:KEYNAME[st.k],bpm:st.bpm,beatsPerBar:4,metronome:false,countInMs:Math.round(4*st.beatMs),durationMs:Math.round(performance.now()-st.t0),noteCount:this.loopEv.length,
+      format:"t_ms,status,note,value; t ab Beginn des Einzählens; status 9=an 8=aus",events:this.loopEv.map(e=>e.join(",")).join(";")};Store.put("recordings",rid,doc);this.loopEv=[]},
+  /* ---- Tasten ---- */
+  note(n,v,ts,on){const st=this.st;if(!st)return;lastInput=performance.now();
+    if(st.mode==="loop"){if(on)this.loopNote(n,v,ts);else this.loopEv.push([Math.round(ts-st.t0),8,n,0]);return}
+    if(st.mode==="harm-u"){if(on)this.harmU();return}
+    if(st.mode==="harm-t"){const bt=(ts-Metro.t0p)/st.beatMs,tg=st.seq.findIndex((x,j)=>st.got[j]===undefined&&bt+.5<x.b0+x.beats&&bt>=x.b0-.75);if(tg>=0)setTimeout(()=>{if(this.st===st)this.harmCheck(tg,(performance.now()-Metro.t0p)/st.beatMs,performance.now())},60);return}
+    if(!on||n<48)return;
+    if(st.mode==="mel-u"){const V=VOCI[this.ex.id],exp=V.n.map(x=>mod(Licks.tonic(st.k)+x[0],12)),pc=mod(n,12);if(!st.i)st.t0=ts;
+      if(pc===exp[st.i]){st.i++;st.fb="";if(st.i>=exp.length){const id=this.ex.id,x=this.it(id),clean=!st.errs;this.log(id,{ok:clean,k:st.k,err:st.errs,ms:Math.round(ts-st.t0)});if(clean){x.runs.n=(x.runs.n||0)+1;good()}saveSettings();
+          if((x.runs.n||0)>=2)return this.passStage(id);this.st={mode:"mel-u",k:st.k,i:0,errs:0,fb:clean?"Sauber. Noch einmal.":"Durch, aber mit Fehler. Noch einmal ohne.",fbc:clean?"ok":"no"};return this.renderEx()}this.draw();return}
+      st.errs++;bad();st.fb="Falscher Ton ("+KEYNAME[pc]+"). Von vorn.";st.fbc="no";st.i=pc===exp[0]?1:0;this.draw();return}
+    if(st.mode==="mel-t"){if(ts<Metro.t0p-150)return;if(st.base==null){const bi=Math.round((ts-Metro.t0p)/st.beatMs);st.base=Metro.t0p+bi*st.beatMs-(st.exp[0]||0)}
+      st.got.push({n,ts,v});const i=st.got.length-1,pc=mod(n,12);if(pc!==st.pcs[i]){bad();return this.melFail("Falscher Ton ("+KEYNAME[pc]+"). Neu ab einer Eins.")}
+      if(st.got.length>=st.pcs.length)return this.melEnd();this.draw()}},
+  harmU(){const st=this.st;setTimeout(()=>{if(this.st!==st)return;const x=st.seq[st.ci],H=[...held.keys()],m=shMatch(H,x.c),V=VOCI[this.ex.id];
+      if(m.ok){const rh=shRH(H,x.c);if(V.lead&&st.prev&&shLeap(st.prev,rh)>2){st.errs++;bad();st.fb="Zu weiter Weg rechts ("+shLeap(st.prev,rh)+" Halbtöne). Näher liegenden Griff nehmen.";st.fbc="no";this.draw();return}
+        st.ms.push(performance.now()-st.shown);st.prev=rh;st.res[st.ci]=1;st.ci++;st.shown=performance.now();good();
+        if(st.ci>=st.seq.length){const id=this.ex.id,xx=this.it(id),clean=!st.errs;this.log(id,{ok:clean,k:st.k,err:st.errs,ms:Math.round(vcMean(st.ms))});if(clean){xx.runs.n=(xx.runs.n||0)+1}saveSettings();
+          if((xx.runs.n||0)>=2)return this.passStage(id);const k=st.k;this.st={mode:"harm-u",k,seq:vcChords(V,k),ci:0,errs:0,shown:performance.now(),ms:[],prev:null,res:[],fb:clean?"Sauber, im Schnitt "+(vcMean(st.ms)/1000).toFixed(1)+" s pro Griff. Noch einmal.":"Durch, aber mit Fehlgriff. Noch einmal ohne.",fbc:clean?"ok":"no"};return this.renderEx()}
+        st.fb="";this.draw();return}
+      if(m.wrong&&H.length>=3){clearTimeout(st.wT);st.wT=setTimeout(()=>{if(this.st!==st)return;const H2=[...held.keys()];if(H2.length>=3&&shMatch(H2,x.c).wrong){st.errs++;bad();st.fb="Fehlgriff: "+shWrong(H2,x.c).join(", ")+" gehört nicht zu "+shName(x.c);st.fbc="no";this.draw()}},450)}},90)},
+  /* ---- Aufnahmen durchsuchen ---- */
+  foundDates(id){const x=this.it(id),since=x.since||"0000";return [...new Set(Object.values(this.V.scan).filter(o=>o.f&&o.f[id]&&(o.d||"")>=since).map(o=>o.d))].sort()},
+  async scan(force){const V=this.V,recs=Store.list("recordings").filter(r=>!String(r.label||"").startsWith("Vokabelheft")&&r.events);let ch=false;
+    recs.forEach(r=>{if(V.scan[r.id]&&!force)return;try{V.scan[r.id]={d:r.date||"",l:String(r.label||"").slice(0,40),f:vcScanRec(r)};ch=true}catch(e){}});
+    const keys=Object.keys(V.scan).sort();if(keys.length>80)keys.slice(0,keys.length-80).forEach(k=>delete V.scan[k]);
+    let up=false;this.waiting().forEach(id=>{if(this.foundDates(id).length>=2){const x=this.it(id);x.st=7;x.learned=today();x.iv=0;x.due=addDays(today(),VC_IV[0]);x.fails=0;up=true;toast("Gelernt: "+VOCI[id].name+". Sie taucht in deinem freien Spiel auf.");burst(80)}});
+    if(up)this.ensure();if(ch||up)saveSettings();return ch||up},
+  stopSound(){clearInterval(this.timer);this.bt.forEach(clearTimeout);this.bt=[]},
+  stop(){const st=this.st;if(st&&st.mode==="loop")this.saveLoop();this.st=null;this.stopSound();Metro.stop();if(st&&st.mode==="loop")stopAll();if($("#vcEx")&&this.ex)this.renderEx()}
+};
+
 /* ---------- Hörplayer ---------- */
 const Player={files:[],cur:null,audio:null,url:null,a:null,b:null,loop:true,raf:0,onTick:null,range:null,secs:[],
   el(){if(!this.audio){this.audio=new Audio();this.audio.preservesPitch=true;this.audio.mozPreservesPitch=true;this.audio.webkitPreservesPitch=true;
@@ -4608,18 +4896,18 @@ const HR={sel:null,step:"do",pi:0,mode:null,taps:[],barI:-1,rec:null,doTarget:nu
 };
 
 /* ---------- Übeplan ---------- */
-const TYPE_PANEL=t=>SK[t]?"drill":t==="rep"?"rep":t==="real"?"player":(t==="song"||t==="licks")?"song":t==="listen"?"listen":(t==="rec"||t==="free")?"rec":null;
-function blk(type,share,extra){const base=SK[type]?{type,title:SK[type].title,text:SK[type].text}:type==="rec"?{type,title:"Freies Spiel: Blues in F",text:"Links Shells (F7, B♭7, C7), rechts Bluestonleiter in F: F, A♭, B♭, B, C, E♭. Kurze Phrasen, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true}:type==="listen"?{type,title:"Hörauftrag mit echter Musik",text:""}:type==="rep"?{type,title:"Repertoire",text:"Die fälligen Stücke durchspielen, ohne anzuhalten, und danach bewerten."}:type==="song"?{type,title:"Song: Autumn Leaves",text:"Aufgabe der Woche aus der Lektion."}:type==="licks"?{type,title:"Blues-Phrasen",text:"Nächster Schritt im Reiter Song, Karte Blues-Phrasen."}:{type,title:type,text:""};return Object.assign({},base,{share},extra||{})}
+const TYPE_PANEL=t=>SK[t]?"drill":t==="rep"?"rep":t==="vocab"?"vocab":t==="real"?"player":(t==="song"||t==="licks")?"song":t==="listen"?"listen":(t==="rec"||t==="free")?"rec":null;
+function blk(type,share,extra){const base=SK[type]?{type,title:SK[type].title,text:SK[type].text}:type==="rec"?{type,title:"Freies Spiel: Blues in F",text:"Links Shells (F7, B♭7, C7), rechts Bluestonleiter in F: F, A♭, B♭, B, C, E♭. Kurze Phrasen, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true}:type==="listen"?{type,title:"Hörauftrag mit echter Musik",text:""}:type==="rep"?{type,title:"Repertoire",text:"Die fälligen Stücke durchspielen, ohne anzuhalten, und danach bewerten."}:type==="song"?{type,title:"Song: Autumn Leaves",text:"Aufgabe der Woche aus der Lektion."}:type==="licks"?{type,title:"Blues-Phrasen",text:"Nächster Schritt im Reiter Song, Karte Blues-Phrasen."}:type==="vocab"?{type,title:"Vokabelheft",text:"Die App wählt den nächsten Schritt."}:{type,title:type,text:""};return Object.assign({},base,{share},extra||{})}
 /* ---------- Übeprogramm 30 Minuten (v3) ---------- */
 const FREE_AL={title:"Freies Spiel über Autumn Leaves",text:"Links die Grundtöne oder Shells der Form, rechts Bruchstücke der Melodie und eigene Varianten davon. Nicht anhalten, falsche Töne sind erlaubt. Wird aufgenommen.",bpm:72,metronome:true};
 const FREE_BL={title:"Freies Spiel: Blues in F",text:"Links F7, B♭7, C7 als Shells, rechts kurze Phrasen aus der Bluestonleiter F, A♭, B♭, B, C, E♭. Fragen und Antworten, Pausen lassen. Wird aufgenommen.",bpm:80,metronome:true};
-const PLAN_V3={v:6,dur:30,title:"Übeprogramm: 30 Minuten",
-  note:"Jeden Klaviertag: Hanon und Autumn Leaves. Jeden Tag Shells und Stimmführung. Abwechselnd dazu Begleitpatterns, freies Spiel über Autumn Leaves und Blues und Gehör. Repertoire übst du ohne Uhr, die Karte unten schlägt dir ein Stück vor.",
+const PLAN_V3={v:7,dur:30,title:"Übeprogramm: Vokabelheft",
+  note:"Jeden Tag das Vokabelheft: Die App wählt, woran du arbeitest, höchstens drei Vokabeln gleichzeitig. Dazu Hanon und Autumn Leaves, wo die Vokabeln zusammenkommen. An zwei von drei Tagen freies Spiel: Dort zeigt sich, ob die Vokabeln ankommen.",
   rotation:[
-    [blk("hanon",.15),blk("dofind",.07),blk("song",.28),blk("shell",.2),blk("rec",.18,FREE_AL),blk("names",.12)],
-    [blk("hanon",.15),blk("ear",.12),blk("song",.28),blk("shell",.2),blk("comp",.25)],
-    [blk("hanon",.12),blk("tech",.08),blk("song",.25),blk("shell",.2),blk("rec",.15,FREE_BL),blk("comp",.1),blk("prog",.1)]]};
-function ensurePlan(){if((+PLAN.v||0)>=6)return false;PLAN=JSON.parse(JSON.stringify(PLAN_V3));S.dur=PLAN.dur;S.qKey=null;S.qPos=0;saveSettings();return true}
+    [blk("hanon",.12),blk("vocab",.35),blk("song",.23),blk("rec",.15,FREE_BL),blk("dofind",.15)],
+    [blk("hanon",.12),blk("vocab",.35),blk("song",.23),blk("real",.15),blk("shell",.15)],
+    [blk("hanon",.1),blk("vocab",.3),blk("song",.2),blk("rec",.15,FREE_AL),blk("comp",.15),blk("names",.1)]]};
+function ensurePlan(){if((+PLAN.v||0)>=7)return false;PLAN=JSON.parse(JSON.stringify(PLAN_V3));S.dur=PLAN.dur;S.qKey=null;S.qPos=0;saveSettings();return true}
 
 const DEFAULT_ROTATION=[
   [blk("dofind",.15),blk("names",.1),blk("song",.35),blk("ear",.1),blk("blind",.05),blk("rec",.15,{title:"Freies Spiel",text:"Frei über Blues in F oder die Form von Autumn Leaves. Wird aufgenommen, nicht bewertet."}),blk("bass",.1)],
@@ -4697,8 +4985,8 @@ const Runner={on:false,last:0,tick:null,lock:null,seg:null,switching:false,start
     this.seg={b,snap:SK[b.type]?Stats.snap(b.type):null};
     if(b.type==="hanon"){const H=hanonInit();Hanon.which=null;H.rev=(H.rev||0)+1;if(H.rev%3===0&&Hanon.review())Hanon.which=Hanon.review()}
     if(panel==="drill")Host.open(b.type,false);else{Host.close();showPanel(panel);if(panel==="listen")Listen.show(b);if(panel==="song"){Song.show();if(b.type==="licks")setTimeout(()=>{const c=$("#lkCard");if(c)c.scrollIntoView({behavior:"smooth",block:"start"})},400)}}
-    if(panel==="drill")$("#dFoot").hidden=true;if(panel==="rep")Rep.begin();
-    chime();$("#rIdx").textContent="Übung "+(k+1)+" von "+DAY.blocks.length;$("#rTitle").textContent=b.title;$("#rText").textContent=(b.type==="real"&&HR.nextText())||(b.type==="song"&&Trainer.nextText())||(b.type==="licks"&&Licks.nextText())||b.text||"";
+    if(panel==="drill")$("#dFoot").hidden=true;if(panel==="rep")Rep.begin();if(panel==="vocab")Vocab.auto();
+    chime();$("#rIdx").textContent="Übung "+(k+1)+" von "+DAY.blocks.length;$("#rTitle").textContent=b.title;$("#rText").textContent=(b.type==="vocab"&&Vocab.nextText())||(b.type==="real"&&HR.nextText())||(b.type==="song"&&Trainer.nextText())||(b.type==="licks"&&Licks.nextText())||b.text||"";
     const nx=DAY.blocks.slice(k+1).find(x=>!x.done);$("#rNext").textContent=nx?"Danach: "+nx.title:"Danach: fertig";
     $("#rClock").textContent=fmt(b.leftMs);$("#rBar").style.width=Math.min(100,100*(1-b.leftMs/b.ms))+"%";this.steps();
     const m=Math.max(1,Math.round(b.leftMs/60000));say(b.title+". "+(b.leftMs<b.ms-5000?"Noch ":"")+m+(m===1?" Minute.":" Minuten."));
@@ -4708,7 +4996,7 @@ const Runner={on:false,last:0,tick:null,lock:null,seg:null,switching:false,start
       if(panel==="rec"){$("#recTask").textContent=b.title;$("#recLabel").value=b.title;const metro=b.metronome===null?b.type!=="free":b.metronome;Rec.start({bpm:b.bpm||+$("#recBpm").value||80,metro,label:b.title})}
     },delay||2200)},
   async closeSeg(){const s=this.seg;if(!s)return;this.seg=null;this.starting=false;const b=s.b,panel=TYPE_PANEL(b.type);
-    if(panel==="drill")Host.close();if(panel==="song"){Trainer.stop();Licks.stop();Song.stop()}if(panel==="player")HR.stop();if(panel==="rec"){const id=await Rec.stop(true);if(id)b.recordingIds.push(id)}
+    if(panel==="drill")Host.close();if(panel==="song"){Trainer.stop();Licks.stop();Song.stop()}if(panel==="player")HR.stop();if(panel==="vocab")Vocab.stop();if(panel==="rec"){const id=await Rec.stop(true);if(id)b.recordingIds.push(id)}
     if(s.snap){const x=Stats.snap(b.type);b.attempts+=x.a-s.snap.a;b.correct+=x.c-s.snap.c;b.timeSum+=x.ts-s.snap.ts;b.timeN+=x.tn-s.snap.tn}
     if(b.type==="rep"){b.attempts+=Rep.sessRated;b.correct+=Rep.sessClean}
     b.levelEnd=S.level[b.type]||null},
@@ -4805,6 +5093,8 @@ async function renderProgress(){const box=$("#pgBox");if(!box)return;const [days
     card("do finden (Sekunden)",spark(P.dofind,x=>x.toFixed(1)+" s",true),"Ziel: unter 3 s")+
     card("Stufen und Namen (Sekunden)",spark(P.names,x=>x.toFixed(1)+" s",true),"")+
     card("Melodien hören (% richtig)",spark(P.ear,x=>Math.round(x)+" %"),"")+
+    (()=>{Vocab.ensure();const L=Vocab.learned(),W=Vocab.work().concat(Vocab.waiting());const tc=W.map(id=>Vocab.tech(id)).filter(Boolean)[0];
+      return '<div class="box"><div class="label">Vokabelheft</div><div class="big">'+L.length+'<span class="small muted"> gelernt</span></div><p class="small">'+(W.length?'In Arbeit: '+W.map(id=>esc(VOCI[id].name)+' (Stufe '+(Vocab.it(id).st+1)+')').join(", "):'Noch nichts in Arbeit')+'</p>'+(L.length?'<p class="small">Gelernt: '+L.map(id=>esc(VOCI[id].name)).join(", ")+'</p>':'')+(tc?'<p class="small muted">'+esc(tc)+'</p>':'')+'</div>'})()+
     '<div class="box"><div class="label">Am Klavier</div>'+
     '<p class="small"><b>Griffe:</b> '+sit+' von '+pool.length+' sitzen'+(avgShell!=null?', im Schnitt '+avgShell.toFixed(1)+' s':'')+'</p>'+
     '<p class="small"><b>Hanon:</b> Nr. '+hn+', Tempo '+(hb||"–")+' von '+ht+' · '+Object.keys(H.done).length+' Nummern geschafft</p>'+
@@ -4830,11 +5120,11 @@ $("#copyLog").onclick=async()=>{const [days,stats,lis]=await Promise.all([Store.
 
 function showPanel(p){
   const recTab=document.querySelector('.tab[data-p="rec"]');if(recTab)recTab.hidden=!LOCAL&&!hasPiano;
-  if(p!=="song"){if(Trainer.st)Trainer.stop();if(Licks.st)Licks.stop();if(Song.playing)Song.stop()}if(p!=="player"&&HR.playing)HR.stop();if(p!=="player"&&p!=="song"&&Player.audio&&!Player.audio.paused)Player.pause();
+  if(p!=="song"){if(Trainer.st)Trainer.stop();if(Licks.st)Licks.stop();if(Song.playing)Song.stop()}if(p!=="player"&&HR.playing)HR.stop();if(p!=="vocab"&&Vocab.st)Vocab.stop();if(p!=="player"&&p!=="song"&&Player.audio&&!Player.audio.paused)Player.pause();
   if(p!=="drill"&&Host.cur&&!Runner.on)Host.close();
   active=p;document.querySelectorAll("section.panel").forEach(s=>s.hidden=s.id!=="p-"+p);if(p==="player")HR.init();
   document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected",String(t.dataset.p===p||(p==="drill"&&t.dataset.p==="path"))));
-  if(p==="home")renderHome();if(p==="path")renderPath();if(p==="rep")Rep.render();if(p==="log")loadLog();if(p==="song")Song.render();if(p==="listen"&&!Runner.on)Listen.show(null);
+  if(p==="home")renderHome();if(p==="path")renderPath();if(p==="vocab"){Vocab.render();Vocab.scan().then(c=>{if(c&&active==="vocab")Vocab.render()})}if(p==="rep")Rep.render();if(p==="log")loadLog();if(p==="song")Song.render();if(p==="listen"&&!Runner.on)Listen.show(null);
 }
 document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>showPanel(t.dataset.p));
 
