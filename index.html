@@ -4504,6 +4504,8 @@ const Licks={st:null,ex:null,timer:null,bt:[],
 /* Jede Vokabel durchläuft sieben Stufen, höchstens drei gleichzeitig in Arbeit. Alles, was am Klavier passiert, wird je Versuch protokolliert. */
 const VC_ST=["Hören und singen","Langsam greifen","Im Takt","Drei Tonarten","Im Stück","Abwandeln","Frei"];
 const VC_IV=[3,7,14,30,60];
+/* Im Takt: Ein Griff zählt, wenn er spätestens auf der Zwei-und liegt (wie im Aufgabentext) */
+const VC_LATE=1.5;
 const VC_CTX={
   blues:{name:"Blues in F",key:5,bpm:84,bars:[[0,"dom7"],[5,"dom7"],[0,"dom7"],[0,"dom7"],[5,"dom7"],[5,"dom7"],[0,"dom7"],[0,"dom7"],[7,"dom7"],[5,"dom7"],[0,"dom7"],[7,"dom7"]]},
   iivi:{name:"II–V–I in F",key:5,bpm:84,bars:[[2,"m7"],[7,"dom7"],[0,"maj7"],[0,"maj7"]]},
@@ -4664,13 +4666,15 @@ const Vocab={st:null,ex:null,timer:null,bt:[],loopEv:[],
     if(st.mode==="mel-t"){if(st.base!=null&&now>st.base+st.exp[st.exp.length-1]+8*st.beatMs){this.melFail("Abgebrochen. Neu ab einer Eins.")}return}
     if(st.mode==="harm-t"){const bt=(now-Metro.t0p)/st.beatMs;if(bt<-0.5)return;const tg=st.seq.findIndex((x,j)=>st.got[j]===undefined&&bt+.5<x.b0+x.beats&&bt>=x.b0-.75);
       if(tg>=0){this.harmCheck(tg,bt,now)}
-      st.seq.forEach((x,j)=>{if(st.res[j]!==undefined)return;if(st.got[j]!==undefined&&bt>=x.b0+.5){st.res[j]=st.got[j]<=x.b0+.5?1:0;if(!st.res[j]){st.fb=shName(x.c)+" zu spät";st.fbc="no"}}else if(bt>=x.b0+x.beats){st.res[j]=0;st.fb=shName(x.c)+" verpasst";st.fbc="no"}});
+      st.seq.forEach((x,j)=>{if(st.res[j]!==undefined)return;if(st.got[j]!==undefined&&bt>=x.b0+VC_LATE){st.res[j]=st.got[j]<=x.b0+VC_LATE?1:0;if(!st.res[j]){st.fb=shName(x.c)+" zu spät";st.fbc="no"}}else if(bt>=x.b0+x.beats){st.res[j]=0;st.fb=shName(x.c)+" verpasst";st.fbc="no"}});
       const ci=st.seq.findIndex(x=>bt<x.b0+x.beats);if(ci!==st.ci&&ci>=0){st.ci=ci;this.draw()}
       if(bt>=st.total)this.harmEnd()}},
   harmCheck(j,bt,now){const st=this.st,x=st.seq[j],H=[...held.keys()],m=shMatch(H,x.c),v=VOCI[this.ex.id];
     if(m.ok){const rh=shRH(H,x.c);if(v.lead&&st.prev&&shLeap(st.prev,rh)>2){if(!st.wrong[j]){st.wrong[j]=1;st.fb="Zu weiter Weg rechts ("+shLeap(st.prev,rh)+" Halbtöne)";st.fbc="no";this.draw()}return}
-      st.got[j]=bt;st.dev[j]=(bt-x.b0)*st.beatMs;st.prev=rh;H.forEach(n=>st.vel.push(held.get(n)||0));if(bt<=x.b0+.5){st.fb="✓";st.fbc="ok"}this.draw();return}
-    if(m.wrong&&H.length>=3){if(!st.wt[j])st.wt[j]=now;else if(now-st.wt[j]>450&&!st.wrong[j]){st.wrong[j]=1;st.fb="Fehlgriff bei "+shName(x.c)+": "+shWrong(H,x.c).join(", ");st.fbc="no";this.draw()}}else st.wt[j]=0},
+      st.got[j]=bt;st.dev[j]=(bt-x.b0)*st.beatMs;st.prev=rh;st.lastH=H.slice();H.forEach(n=>st.vel.push(held.get(n)||0));if(bt<=x.b0+VC_LATE){st.fb="✓";st.fbc="ok"}this.draw();return}
+    /* Den vorigen Griff noch zu halten ist kein Fehlgriff (ganze Noten), sondern höchstens zu spät */
+    if(st.lastH&&H.every(n=>st.lastH.includes(n))){st.wt[j]=0;return}
+    if(m.wrong&&H.length>=3&&bt>=x.b0){if(!st.wt[j])st.wt[j]=now;else if(now-st.wt[j]>450&&!st.wrong[j]){st.wrong[j]=1;st.fb="Fehlgriff bei "+shName(x.c)+": "+shWrong(H,x.c).join(", ");st.fbc="no";this.draw()}}else st.wt[j]=0},
   harmEnd(){const st=this.st,id=this.ex.id,x=this.it(id),v=VOCI[id];clearInterval(this.timer);Metro.stop();const n=st.seq.length,miss=st.res.filter(r=>!r).length,wr=st.wrong.filter(Boolean).length;
     const devs=st.dev.filter((d,j)=>d!=null&&st.res[j]===1).map(Math.abs),ok=miss<=(n>=8?1:0)&&wr<=1;
     this.log(id,{ok,k:st.k,bpm:st.bpm,err:miss+wr,dev:devs.length?Math.round(vcMed(devs)):null,bias:devs.length?Math.round(vcMean(st.dev.filter((d,j)=>d!=null&&st.res[j]===1))):null,vel:Math.round(vcMean(st.vel)||0),vsd:Math.round(vcSd(st.vel))});
