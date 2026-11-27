@@ -199,6 +199,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.9rem}
 .lkline{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;font-family:var(--display);font-size:1.6rem}
 .lksyl.ok{color:var(--good)}
 .vcwork{display:flex;flex-direction:column;gap:10px}
+.hslist{padding-left:1.2em;display:flex;flex-direction:column;gap:6px;margin:6px 0}
+.hslist li.done{color:var(--muted)}
 .vcitem{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
 .vcitem.on{border-color:var(--accent)}
 .vcitem p{margin:0}
@@ -5384,7 +5386,8 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
       body='<p class="small"><b>Am schnellsten:</b> einmal den ganzen Song hören und an acht Stellen tippen, dann sind alle Phrasen auf einmal markiert.</p><div class="row"><button class="btn primary" id="melTapGo" type="button">Ganzen Song durchtippen</button></div><p class="small muted">Oder nur diese eine Phrase von Hand:</p>'+body;
       btns='<button class="btn" id="melPlay" type="button">'+(Player.audio&&!Player.audio.paused?"Pause":"Abspielen")+'</button><button class="btn" id="melBack" type="button">−5 s</button><button class="btn" id="melA" type="button">Phrase beginnt</button><button class="btn" id="melB" type="button"'+(a===null?' disabled':'')+'>Phrase endet</button>'}
     else if(K.ex.mel==="hear"){
-      body='<p>Erst dreimal nur zuhören. Dann auf Silben mitsingen. Silben eintippen und anhören, ob es wie die Aufnahme klingt. Zum Schluss die Schleife anhalten und die Phrase allein singen.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>'+this.splitHint(K,p)+Sing.html(p);
+      const k=phKey(p),hs=(P.hs=P.hs||{})[k]=P.hs[k]||[],HS=["<b>Erster Bogen</b> (Knopf „1. Hälfte“, drei Auftakttöne und ein langer Ton): auf „la“ mitsummen, bis du ihn ohne Aufnahme summen kannst.","<b>Zielton:</b> Halt den langen Ton. Drück „do anspielen“ und sing vom Zielton stufenweise zum do. Wie viele Schritte? Silbe des Zieltons eintippen.","<b>Die drei Töne davor:</b> vom Zielton aus rückwärts. Silben tippen, dann „Meine Silben anhören“ direkt nach der Schleife. Klingt ein Ton falsch, nur diesen ändern (Nachbarsilbe probieren).","<b>Zweiter Bogen</b> (Knopf „2. Hälfte“): dieselbe Gestalt wie der erste, nur von einem anderen Ton aus. Hör, wo er beginnt, dann genauso: summen, Zielton, Töne davor.","<b>Ganze Phrase</b> mit Silben singen, Schleife aus. Klappt es, „Kann ich singen“."];
+      body='<p class="small">Fünf kleine Schritte, jeden abhaken. Ein Bogen ist kurz genug, um ihn im Kopf zu behalten.</p><ol class="hslist">'+HS.map((t,i)=>'<li class="'+(hs[i]?"done":"")+'"><button class="linkbtn small" type="button" data-hs="'+i+'">'+(hs[i]?"✓":"○")+'</button> '+t+'</li>').join("")+'</ol><p class="small muted">Akkorde: '+esc(chords)+'. Prüf einmal mit „do anspielen“ in einem Moll-Takt, ob do wie der Ruheton der Aufnahme klingt. Wenn nicht, stimmt die Tonart der Aufnahme unten nicht.</p>'+this.splitHint(K,p)+Sing.html(p);
       btns=this.loopBtns()+'<button class="btn" id="melOk" type="button">Kann ich singen</button>'}
     else if(K.ex.mel==="find"){const r=P.mel[phKey(p)],recN=this.rec?this.rec.n:null;
       body='<p>Hör die Schleife und such die Töne rechts am Klavier. Klingt es wie die Aufnahme, drück „Aufnehmen“ und spiel die Phrase einmal.</p><p class="small muted">Akkorde: '+esc(chords)+'</p>'+
@@ -5408,6 +5411,10 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
     on("melBack",()=>{const el=Player.el();el.currentTime=Math.max(0,el.currentTime-5);this.render()});
     on("melA",()=>{Player.a=Player.el().currentTime;this.render()});
     on("melB",async()=>{const t=Player.el().currentTime;if(Player.a===null||t<=Player.a+1){toast("Erst den Anfang setzen");return}Player.secs.push({name:phName(p),a:Player.a,b:t});Player.a=Player.b=null;await Player.saveSecs();Player.pause();toast("Phrase markiert");this.render()});
+    on("melH1",()=>{const s=this.sec(p);if(!s)return;Player.playRange(s.a,(s.a+s.b)/2,true);setTimeout(()=>this.render(),50)});
+    on("melH2",()=>{const s=this.sec(p);if(!s)return;Player.playRange((s.a+s.b)/2,s.b,true);setTimeout(()=>this.render(),50)});
+    on("melDoTone",()=>{const b=Sing.base(p);playSeq([{n:b-12,t:.02,d:1.6,v:55},{n:b,t:.02,d:1.6,v:72}],true)});
+    document.querySelectorAll("[data-hs]").forEach(b=>b.onclick=()=>{const P2=this.P(),k=phKey(p),a=(P2.hs=P2.hs||{})[k]=P2.hs[k]||[];a[+b.dataset.hs]=!a[+b.dataset.hs];saveSettings();this.render()});
     on("melLoop",()=>{const s=this.sec(p);if(Player.audio&&!Player.audio.paused){Player.pause()}else Player.playRange(s.a,s.b,true);setTimeout(()=>this.render(),50)});
     on("melRate",()=>{Player.setRate(Player.el().playbackRate<.9?1:.75);this.render()});
     on("melRemark",async()=>{Player.secs=Player.secs.filter(s=>s.name!==phName(p));await Player.saveSecs();Player.pause();this.render()});
@@ -5432,7 +5439,8 @@ const Mel={i:0,rec:null,recT:null,run:null,tap:null,
   expOf(ph){const off=recOff();return this.P().mel[phKey(ph)].n.map(n=>n-off)},
   songLine(K){const off=recOff(),P=this.P();return this.phs(K).filter(q=>P.mel[phKey(q)]).map(q=>P.mel[phKey(q)].n.map(n=>TRN[mod(n-off,12)]).join(" ")).join(" | ")},
   loopBtns(){const pl=Player.audio&&!Player.audio.paused,slow=Player.audio&&Player.audio.playbackRate<.9;
-    return '<button class="btn'+(pl?'':' primary')+'" id="melLoop" type="button">'+(pl?"Pause":"▶ Phrase in Schleife")+'</button><button class="btn" id="melRate" type="button">Tempo '+(slow?"75 %":"100 %")+'</button><button class="linkbtn" id="melRemark" type="button">Neu markieren</button><button class="linkbtn" id="melTapGo" type="button">Alle neu durchtippen</button>'},
+    const K=Trainer.ex&&Trainer.key(Trainer.ex),hear=K&&K.ex.mel==="hear";
+    return '<button class="btn'+(pl?'':' primary')+'" id="melLoop" type="button">'+(pl?"Pause":"▶ Phrase in Schleife")+'</button>'+(hear?'<button class="btn" id="melH1" type="button">1. Hälfte</button><button class="btn" id="melH2" type="button">2. Hälfte</button><button class="btn" id="melDoTone" type="button">do anspielen</button>':'')+'<button class="btn" id="melRate" type="button">Tempo '+(slow?"75 %":"100 %")+'</button><button class="linkbtn" id="melRemark" type="button">Neu markieren</button><button class="linkbtn" id="melTapGo" type="button">Alle neu durchtippen</button>'},
   tickUi(){clearTimeout(this.uiT);if(!Player.audio||Player.audio.paused)return;const K=Trainer.ex&&Trainer.key(Trainer.ex);if(!K||!K.ex.mel)return;const p=this.phs(K)[this.i];if(p&&!this.sec(p)){this.render();this.uiT=setTimeout(()=>this.tickUi(),500)}},
   async tapNow(){const tp=this.tap;if(!tp)return;tp.t.push(Player.el().currentTime);tp.k++;good();
     if(tp.k<MEL_TAPS.length)return this.render();
